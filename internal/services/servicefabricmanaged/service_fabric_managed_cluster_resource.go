@@ -154,17 +154,15 @@ func (k ClusterResource) Arguments() map[string]*pluginsdk.Schema {
 				validation.StringMatch(regexp.MustCompile("^[^\\\\/\"\\[\\]:|<>+=;,?*$]{1,14}$"), "User names cannot contain special characters \\/\"\"[]:|<>+=;,$?*@")),
 		},
 		"password": {
-			Type:     pluginsdk.TypeString,
-			Optional: true,
+			Type:      pluginsdk.TypeString,
+			Optional:  true,
+			Sensitive: true,
 			ValidateFunc: validation.All(
 				validation.StringLenBetween(8, 123),
-				validation.StringIsNotWhiteSpace),
+				validation.StringIsNotWhiteSpace,
+			),
 		},
-		"resource_group_name": {
-			Type:         pluginsdk.TypeString,
-			Required:     true,
-			ValidateFunc: validation.StringIsNotWhiteSpace,
-		},
+		"resource_group_name": commonschema.ResourceGroupName(),
 
 		"node_type":      nodeTypeSchema(),
 		"authentication": authSchema(),
@@ -764,12 +762,12 @@ func flattenNodetypeProperties(nt nodetype.NodeType) NodeType {
 		DataDiskSize:     nt.Properties.DataDiskSizeGB,
 		Name:             utils.NormalizeNilableString(nt.Name),
 		Primary:          props.IsPrimary,
-		VmImageOffer:     utils.NormalizeNilableString(props.VmImageOffer),
-		VmImagePublisher: utils.NormalizeNilableString(props.VmImagePublisher),
-		VmImageSku:       utils.NormalizeNilableString(props.VmImageSku),
-		VmImageVersion:   utils.NormalizeNilableString(props.VmImageVersion),
-		VmInstanceCount:  props.VmInstanceCount,
-		VmSize:           utils.NormalizeNilableString(props.VmSize),
+		VmImageOffer:     utils.NormalizeNilableString(props.VMImageOffer),
+		VmImagePublisher: utils.NormalizeNilableString(props.VMImagePublisher),
+		VmImageSku:       utils.NormalizeNilableString(props.VMImageSku),
+		VmImageVersion:   utils.NormalizeNilableString(props.VMImageVersion),
+		VmInstanceCount:  props.VMInstanceCount,
+		VmSize:           utils.NormalizeNilableString(props.VMSize),
 		ApplicationPorts: fmt.Sprintf("%d-%d", props.ApplicationPorts.StartPort, props.ApplicationPorts.EndPort),
 		EphemeralPorts:   fmt.Sprintf("%d-%d", props.EphemeralPorts.StartPort, props.EphemeralPorts.EndPort),
 		Id:               utils.NormalizeNilableString(nt.Id),
@@ -803,7 +801,7 @@ func flattenNodetypeProperties(nt nodetype.NodeType) NodeType {
 		out.PlacementProperties = placements
 	}
 
-	if secrets := props.VmSecrets; secrets != nil {
+	if secrets := props.VMSecrets; secrets != nil {
 		secs := make([]VmSecrets, len(*secrets))
 		for idx, sec := range *secrets {
 			certs := make([]VaultCertificates, len(sec.VaultCertificates))
@@ -973,13 +971,13 @@ func expandNodeTypeProperties(nt *NodeType) (*nodetype.NodeTypeProperties, error
 		IsStateless:             &nt.Stateless,
 		MultiplePlacementGroups: &nt.MultiplePlacementGroupsEnabled,
 		PlacementProperties:     &nt.PlacementProperties,
-		VmImageOffer:            &nt.VmImageOffer,
-		VmImagePublisher:        &nt.VmImagePublisher,
-		VmImageSku:              &nt.VmImageSku,
-		VmImageVersion:          &nt.VmImageVersion,
-		VmInstanceCount:         nt.VmInstanceCount,
-		VmSecrets:               &vmSecrets,
-		VmSize:                  &nt.VmSize,
+		VMImageOffer:            &nt.VmImageOffer,
+		VMImagePublisher:        &nt.VmImagePublisher,
+		VMImageSku:              &nt.VmImageSku,
+		VMImageVersion:          &nt.VmImageVersion,
+		VMInstanceCount:         nt.VmInstanceCount,
+		VMSecrets:               &vmSecrets,
+		VMSize:                  &nt.VmSize,
 	}
 
 	return nodeTypeProperties, nil
