@@ -8,6 +8,7 @@ This readme covers example usages, but further information on [using this SDK ca
 ### Import Path
 
 ```go
+import "github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 import "github.com/hashicorp/go-azure-sdk/resource-manager/videoanalyzer/2021-05-01-preview/videoanalyzers"
 ```
 
@@ -45,7 +46,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "accountValue")
+id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "videoAnalyzerValue")
 
 payload := videoanalyzers.VideoAnalyzer{
 	// ...
@@ -66,7 +67,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "accountValue")
+id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "videoAnalyzerValue")
 
 read, err := client.VideoAnalyzersDelete(ctx, id)
 if err != nil {
@@ -82,7 +83,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "accountValue")
+id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "videoAnalyzerValue")
 
 read, err := client.VideoAnalyzersGet(ctx, id)
 if err != nil {
@@ -98,7 +99,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := videoanalyzers.NewResourceGroupID("12345678-1234-9876-4563-123456789012", "example-resource-group")
+id := commonids.NewResourceGroupID("12345678-1234-9876-4563-123456789012", "example-resource-group")
 
 read, err := client.VideoAnalyzersList(ctx, id)
 if err != nil {
@@ -114,7 +115,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := videoanalyzers.NewSubscriptionID("12345678-1234-9876-4563-123456789012")
+id := commonids.NewSubscriptionID("12345678-1234-9876-4563-123456789012")
 
 read, err := client.VideoAnalyzersListBySubscription(ctx, id)
 if err != nil {
@@ -130,7 +131,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "accountValue")
+id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "videoAnalyzerValue")
 
 payload := videoanalyzers.SyncStorageKeysInput{
 	// ...
@@ -151,7 +152,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "accountValue")
+id := videoanalyzers.NewVideoAnalyzerID("12345678-1234-9876-4563-123456789012", "example-resource-group", "videoAnalyzerValue")
 
 payload := videoanalyzers.VideoAnalyzerUpdate{
 	// ...

@@ -275,7 +275,7 @@ The `site_config` block supports the following:
 
 * `http2_enabled` - (Optional) Specifies whether or not the HTTP2 protocol should be enabled. Defaults to `false`.
 
-* `ip_restriction` - (Optional) A [List of objects](/docs/configuration/attr-as-blocks.html) representing IP restrictions as defined below.
+* `ip_restriction` - (Optional) A list of `ip_restriction` objects representing IP restrictions as defined below.
 
 -> **NOTE** User has to explicitly set `ip_restriction` to empty slice (`[]`) to remove it.
 
@@ -289,7 +289,7 @@ The `site_config` block supports the following:
 
 * `runtime_scale_monitoring_enabled` - (Optional) Should Runtime Scale Monitoring be enabled?. Only applicable to apps on the Premium plan. Defaults to `false`.
 
-* `scm_ip_restriction` - (Optional) A [List of objects](/docs/configuration/attr-as-blocks.html) representing IP restrictions as defined below.
+* `scm_ip_restriction` - (Optional) A list of `scm_ip_restriction` objects representing IP restrictions as defined below.
 
 -> **NOTE** User has to explicitly set `scm_ip_restriction` to empty slice (`[]`) to remove it.
 
@@ -310,6 +310,10 @@ The `site_config` block supports the following:
 ~> **NOTE:** This setting supersedes the previous mechanism of setting the `app_settings` value of `WEBSITE_VNET_ROUTE_ALL`. However, to prevent older configurations breaking Terraform will update this value if it not explicitly set to the value in `app_settings.WEBSITE_VNET_ROUTE_ALL`.
 
 * `websockets_enabled` - (Optional) Should WebSockets be enabled?
+
+* `auto_swap_slot_name` - (Optional) The name of the slot to automatically swap to during deployment
+
+~> **NOTE:** This attribute is only used for slots.
 
 ---
 
@@ -429,7 +433,7 @@ A `ip_restriction` block supports the following:
 
 * `action` - (Optional) Does this restriction `Allow` or `Deny` access for this IP range. Defaults to `Allow`. 
 
-* `headers` - (Optional) The headers for this specific `ip_restriction` as defined below.
+* `headers` - (Optional) The `headers` block for this specific `ip_restriction` as defined below.
 
 ---
 
@@ -449,7 +453,7 @@ A `scm_ip_restriction` block supports the following:
 
 * `action` - (Optional) Allow or Deny access for this IP range. Defaults to `Allow`.
 
-* `headers` - (Optional) The headers for this specific `scm_ip_restriction` as defined below.
+* `headers` - (Optional) The `headers` block for this specific `scm_ip_restriction` as defined below.
 
 ---
 
@@ -479,7 +483,7 @@ A `source_control` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Function App
 
@@ -505,7 +509,7 @@ The `identity` block exports the following:
 
 * `tenant_id` - The Tenant ID for the Service Principal associated with the Managed Service Identity of this App Service.
 
--> You can access the Principal ID via `azurerm_app_service.example.identity.0.principal_id` and the Tenant ID via `azurerm_app_service.example.identity.0.tenant_id`
+-> You can access the Principal ID via `azurerm_app_service.example.identity[0].principal_id` and the Tenant ID via `azurerm_app_service.example.identity[0].tenant_id`
 
 ---
 

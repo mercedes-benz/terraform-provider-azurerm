@@ -7,51 +7,40 @@ import (
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/resourceids"
 )
 
-var _ resourceids.ResourceId = LiveEventId{}
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See NOTICE.txt in the project root for license information.
+
+var _ resourceids.ResourceId = &LiveEventId{}
 
 // LiveEventId is a struct representing the Resource ID for a Live Event
 type LiveEventId struct {
 	SubscriptionId    string
 	ResourceGroupName string
-	AccountName       string
+	MediaServiceName  string
 	LiveEventName     string
 }
 
 // NewLiveEventID returns a new LiveEventId struct
-func NewLiveEventID(subscriptionId string, resourceGroupName string, accountName string, liveEventName string) LiveEventId {
+func NewLiveEventID(subscriptionId string, resourceGroupName string, mediaServiceName string, liveEventName string) LiveEventId {
 	return LiveEventId{
 		SubscriptionId:    subscriptionId,
 		ResourceGroupName: resourceGroupName,
-		AccountName:       accountName,
+		MediaServiceName:  mediaServiceName,
 		LiveEventName:     liveEventName,
 	}
 }
 
 // ParseLiveEventID parses 'input' into a LiveEventId
 func ParseLiveEventID(input string) (*LiveEventId, error) {
-	parser := resourceids.NewParserFromResourceIdType(LiveEventId{})
+	parser := resourceids.NewParserFromResourceIdType(&LiveEventId{})
 	parsed, err := parser.Parse(input, false)
 	if err != nil {
 		return nil, fmt.Errorf("parsing %q: %+v", input, err)
 	}
 
-	var ok bool
 	id := LiveEventId{}
-
-	if id.SubscriptionId, ok = parsed.Parsed["subscriptionId"]; !ok {
-		return nil, fmt.Errorf("the segment 'subscriptionId' was not found in the resource id %q", input)
-	}
-
-	if id.ResourceGroupName, ok = parsed.Parsed["resourceGroupName"]; !ok {
-		return nil, fmt.Errorf("the segment 'resourceGroupName' was not found in the resource id %q", input)
-	}
-
-	if id.AccountName, ok = parsed.Parsed["accountName"]; !ok {
-		return nil, fmt.Errorf("the segment 'accountName' was not found in the resource id %q", input)
-	}
-
-	if id.LiveEventName, ok = parsed.Parsed["liveEventName"]; !ok {
-		return nil, fmt.Errorf("the segment 'liveEventName' was not found in the resource id %q", input)
+	if err := id.FromParseResult(*parsed); err != nil {
+		return nil, err
 	}
 
 	return &id, nil
@@ -60,32 +49,40 @@ func ParseLiveEventID(input string) (*LiveEventId, error) {
 // ParseLiveEventIDInsensitively parses 'input' case-insensitively into a LiveEventId
 // note: this method should only be used for API response data and not user input
 func ParseLiveEventIDInsensitively(input string) (*LiveEventId, error) {
-	parser := resourceids.NewParserFromResourceIdType(LiveEventId{})
+	parser := resourceids.NewParserFromResourceIdType(&LiveEventId{})
 	parsed, err := parser.Parse(input, true)
 	if err != nil {
 		return nil, fmt.Errorf("parsing %q: %+v", input, err)
 	}
 
-	var ok bool
 	id := LiveEventId{}
-
-	if id.SubscriptionId, ok = parsed.Parsed["subscriptionId"]; !ok {
-		return nil, fmt.Errorf("the segment 'subscriptionId' was not found in the resource id %q", input)
-	}
-
-	if id.ResourceGroupName, ok = parsed.Parsed["resourceGroupName"]; !ok {
-		return nil, fmt.Errorf("the segment 'resourceGroupName' was not found in the resource id %q", input)
-	}
-
-	if id.AccountName, ok = parsed.Parsed["accountName"]; !ok {
-		return nil, fmt.Errorf("the segment 'accountName' was not found in the resource id %q", input)
-	}
-
-	if id.LiveEventName, ok = parsed.Parsed["liveEventName"]; !ok {
-		return nil, fmt.Errorf("the segment 'liveEventName' was not found in the resource id %q", input)
+	if err := id.FromParseResult(*parsed); err != nil {
+		return nil, err
 	}
 
 	return &id, nil
+}
+
+func (id *LiveEventId) FromParseResult(input resourceids.ParseResult) error {
+	var ok bool
+
+	if id.SubscriptionId, ok = input.Parsed["subscriptionId"]; !ok {
+		return resourceids.NewSegmentNotSpecifiedError(id, "subscriptionId", input)
+	}
+
+	if id.ResourceGroupName, ok = input.Parsed["resourceGroupName"]; !ok {
+		return resourceids.NewSegmentNotSpecifiedError(id, "resourceGroupName", input)
+	}
+
+	if id.MediaServiceName, ok = input.Parsed["mediaServiceName"]; !ok {
+		return resourceids.NewSegmentNotSpecifiedError(id, "mediaServiceName", input)
+	}
+
+	if id.LiveEventName, ok = input.Parsed["liveEventName"]; !ok {
+		return resourceids.NewSegmentNotSpecifiedError(id, "liveEventName", input)
+	}
+
+	return nil
 }
 
 // ValidateLiveEventID checks that 'input' can be parsed as a Live Event ID
@@ -106,7 +103,7 @@ func ValidateLiveEventID(input interface{}, key string) (warnings []string, erro
 // ID returns the formatted Live Event ID
 func (id LiveEventId) ID() string {
 	fmtString := "/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Media/mediaServices/%s/liveEvents/%s"
-	return fmt.Sprintf(fmtString, id.SubscriptionId, id.ResourceGroupName, id.AccountName, id.LiveEventName)
+	return fmt.Sprintf(fmtString, id.SubscriptionId, id.ResourceGroupName, id.MediaServiceName, id.LiveEventName)
 }
 
 // Segments returns a slice of Resource ID Segments which comprise this Live Event ID
@@ -119,7 +116,7 @@ func (id LiveEventId) Segments() []resourceids.Segment {
 		resourceids.StaticSegment("staticProviders", "providers", "providers"),
 		resourceids.ResourceProviderSegment("staticMicrosoftMedia", "Microsoft.Media", "Microsoft.Media"),
 		resourceids.StaticSegment("staticMediaServices", "mediaServices", "mediaServices"),
-		resourceids.UserSpecifiedSegment("accountName", "accountValue"),
+		resourceids.UserSpecifiedSegment("mediaServiceName", "mediaServiceValue"),
 		resourceids.StaticSegment("staticLiveEvents", "liveEvents", "liveEvents"),
 		resourceids.UserSpecifiedSegment("liveEventName", "liveEventValue"),
 	}
@@ -130,7 +127,7 @@ func (id LiveEventId) String() string {
 	components := []string{
 		fmt.Sprintf("Subscription: %q", id.SubscriptionId),
 		fmt.Sprintf("Resource Group Name: %q", id.ResourceGroupName),
-		fmt.Sprintf("Account Name: %q", id.AccountName),
+		fmt.Sprintf("Media Service Name: %q", id.MediaServiceName),
 		fmt.Sprintf("Live Event Name: %q", id.LiveEventName),
 	}
 	return fmt.Sprintf("Live Event (%s)", strings.Join(components, "\n"))

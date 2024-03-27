@@ -10,6 +10,8 @@ description: |-
 
 Manages a Customer Managed Key for a MySQL Server.
 
+~> **Note:** Azure Database for MySQL Single Server and its sub resources are scheduled for retirement by 2024-09-16 and will migrate to using Azure Database for MySQL Flexible Server: https://go.microsoft.com/fwlink/?linkid=2216041. The `azurerm_mysql_server_key` resource is deprecated and will be removed in v4.0 of the AzureRM Provider. Please use the `customer_managed_key` property of the `azurerm_mysql_flexible_server` resource instead.
+
 ## Example Usage
 
 ```hcl
@@ -32,7 +34,7 @@ resource "azurerm_key_vault" "example" {
 resource "azurerm_key_vault_access_policy" "server" {
   key_vault_id       = azurerm_key_vault.example.id
   tenant_id          = data.azurerm_client_config.current.tenant_id
-  object_id          = azurerm_mysql_server.example.identity.0.principal_id
+  object_id          = azurerm_mysql_server.example.identity[0].principal_id
   key_permissions    = ["Get", "UnwrapKey", "WrapKey"]
   secret_permissions = ["Get"]
 }
@@ -41,7 +43,7 @@ resource "azurerm_key_vault_access_policy" "client" {
   key_vault_id       = azurerm_key_vault.example.id
   tenant_id          = data.azurerm_client_config.current.tenant_id
   object_id          = data.azurerm_client_config.current.object_id
-  key_permissions    = ["Get", "Create", "Delete", "List", "Restore", "Recover", "UnwrapKey", "WrapKey", "Purge", "Encrypt", "Decrypt", "Sign", "Verify"]
+  key_permissions    = ["Get", "Create", "Delete", "List", "Restore", "Recover", "UnwrapKey", "WrapKey", "Purge", "Encrypt", "Decrypt", "Sign", "Verify", "GetRotationPolicy"]
   secret_permissions = ["Get"]
 }
 
@@ -90,7 +92,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported in addition to the arguments listed above:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the MySQL Server Key.
 

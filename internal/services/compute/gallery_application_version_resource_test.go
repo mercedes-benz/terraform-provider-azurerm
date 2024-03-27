@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package compute_test
 
 import (
@@ -6,12 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
+	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2022-03-03/galleryapplicationversions"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/compute/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
-	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
 type GalleryApplicationVersionResource struct{}
@@ -73,7 +77,14 @@ func TestAccGalleryApplicationVersion_update(t *testing.T) {
 		},
 		data.ImportStep(),
 		{
-			Config: r.complete(data),
+			Config: r.update(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basic(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -248,18 +259,18 @@ func TestAccGalleryApplicationVersion_tags(t *testing.T) {
 }
 
 func (r GalleryApplicationVersionResource) Exists(ctx context.Context, client *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.GalleryApplicationVersionID(state.ID)
+	id, err := galleryapplicationversions.ParseApplicationVersionID(state.ID)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.Compute.GalleryApplicationVersionsClient.Get(ctx, id.ResourceGroup, id.GalleryName, id.ApplicationName, id.VersionName, "")
+	resp, err := client.Compute.GalleryApplicationVersionsClient.Get(ctx, *id, galleryapplicationversions.DefaultGetOperationOptions())
 	if err != nil {
-		if utils.ResponseWasNotFound(resp.Response) {
-			return utils.Bool(false), nil
+		if response.WasNotFound(resp.HttpResponse) {
+			return pointer.To(false), nil
 		}
 		return nil, fmt.Errorf("retrieving %s: %+v", id, err)
 	}
-	return utils.Bool(resp.ID != nil), nil
+	return pointer.To(resp.Model != nil), nil
 }
 
 func (r GalleryApplicationVersionResource) template(data acceptance.TestData) string {
@@ -375,9 +386,11 @@ resource "azurerm_gallery_application_version" "test" {
   gallery_application_id = azurerm_gallery_application.test.id
   location               = azurerm_gallery_application.test.location
 
+  config_file         = "config"
   enable_health_check = true
   end_of_life_date    = "%s"
   exclude_from_latest = true
+  package_file        = "package"
 
   manage_action {
     install = "[install command]"
@@ -392,6 +405,7 @@ resource "azurerm_gallery_application_version" "test" {
 
   target_region {
     name                   = azurerm_gallery_application.test.location
+    exclude_from_latest    = true
     regional_replica_count = 1
     storage_account_type   = "Premium_LRS"
   }
@@ -401,6 +415,41 @@ resource "azurerm_gallery_application_version" "test" {
   }
 }
 `, template, time.Now().Add(time.Hour*10).Format(time.RFC3339))
+}
+
+func (r GalleryApplicationVersionResource) update(data acceptance.TestData) string {
+	template := r.template(data)
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_gallery_application_version" "test" {
+  name                   = "0.0.1"
+  gallery_application_id = azurerm_gallery_application.test.id
+  location               = azurerm_gallery_application.test.location
+
+  enable_health_check = true
+  exclude_from_latest = true
+
+  manage_action {
+    install = "[install command]"
+    remove  = "[remove command]"
+  }
+
+  source {
+    media_link = azurerm_storage_blob.test.id
+  }
+
+  target_region {
+    name                   = azurerm_gallery_application.test.location
+    exclude_from_latest    = true
+    regional_replica_count = 1
+  }
+
+  tags = {
+    ENV = "Test"
+  }
+}
+`, template)
 }
 
 func (r GalleryApplicationVersionResource) enableHealthCheck(data acceptance.TestData) string {

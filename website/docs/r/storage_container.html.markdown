@@ -47,11 +47,13 @@ The following arguments are supported:
 
 * `container_access_type` - (Optional) The Access Level configured for this Container. Possible values are `blob`, `container` or `private`. Defaults to `private`.
 
+~> **Note** When updating `container_access_type` for an existing storage container resource, Shared Key authentication will always be used, as AzureAD authentication is not supported.
+
 * `metadata` - (Optional) A mapping of MetaData for this Container. All metadata keys should be lowercase.
 
 ## Attributes Reference
 
-The following attributes are exported in addition to the arguments listed above:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Storage Container.
 

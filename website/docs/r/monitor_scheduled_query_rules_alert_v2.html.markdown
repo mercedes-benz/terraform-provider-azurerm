@@ -31,6 +31,18 @@ resource "azurerm_monitor_action_group" "example" {
   short_name          = "test mag"
 }
 
+resource "azurerm_user_assigned_identity" "example" {
+  name                = "example-uai"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+}
+
+resource "azurerm_role_assignment" "example" {
+  scope                = azurerm_application_insights.example.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.example.principal_id
+}
+
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "example" {
   name                = "example-msqrv2"
   resource_group_name = azurerm_resource_group.example.name
@@ -77,10 +89,18 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "example" {
     }
   }
 
+  identity {
+    type = "UserAssigned"
+    identity_ids = [
+      azurerm_user_assigned_identity.example.id,
+    ]
+  }
   tags = {
     key  = "value"
     key2 = "value2"
   }
+
+  depends_on = [azurerm_role_assignment.example]
 }
 ```
 
@@ -102,7 +122,7 @@ The following arguments are supported:
 
 -> **Note** `evaluation_frequency` cannot be greater than the `mute_actions_after_alert_duration`.
 
-* `scopes` - (Required) Specifies the list of resource ids that this scheduled query rule is scoped to. Changing this forces a new resource to be created.
+* `scopes` - (Required) Specifies the list of resource IDs that this scheduled query rule is scoped to. Changing this forces a new resource to be created. Currently, the API supports exactly 1 resource ID in the scopes list.
 
 * `severity` - (Required) Severity of the alert. Should be an integer between 0 and 4. Value of 0 is severest.
 
@@ -118,11 +138,11 @@ The following arguments are supported:
 
 * `display_name` - (Optional) Specifies the display name of the alert rule.
 
-* `enabled` - (Optional) Specifies the flag which indicates whether this scheduled query rule is enabled. Value should be `true` or `false`. The default is `true`.
+* `enabled` - (Optional) Specifies the flag which indicates whether this scheduled query rule is enabled. Value should be `true` or `false`. Defaults to `true`.
 
 * `mute_actions_after_alert_duration` - (Optional) Mute actions for the chosen period of time in ISO 8601 duration format after the alert is fired. Possible values are `PT5M`, `PT10M`, `PT15M`, `PT30M`, `PT45M`, `PT1H`, `PT2H`, `PT3H`, `PT4H`, `PT5H`, `PT6H`, `P1D` and `P2D`.
 
--> **NOTE** `auto_mitigation_enabled` and `mute_actions_after_alert_duration` are mutually exclusive and cannot both be set.
+-> **Note** `auto_mitigation_enabled` and `mute_actions_after_alert_duration` are mutually exclusive and cannot both be set.
 
 * `query_time_range_override` - (Optional) Set this if the alert evaluation period is different from the query time range. If not specified, the value is `window_duration`*`number_of_evaluation_periods`. Possible values are `PT5M`, `PT10M`, `PT15M`, `PT20M`, `PT30M`, `PT45M`, `PT1H`, `PT2H`, `PT3H`, `PT4H`, `PT5H`, `PT6H`, `P1D` and `P2D`.
 
@@ -134,11 +154,13 @@ The following arguments are supported:
 
 * `target_resource_types` - (Optional) List of resource type of the target resource(s) on which the alert is created/updated. For example if the scope is a resource group and targetResourceTypes is `Microsoft.Compute/virtualMachines`, then a different alert will be fired for each virtual machine in the resource group which meet the alert criteria.
 
+* `identity` - (Optional) An `identity` block as defined below.
+
 ---
 
 An `action` block supports the following:
 
-* `action_groups` - (Optional) List of Action Group resource ids to invoke when the alert fires.
+* `action_groups` - (Optional) List of Action Group resource IDs to invoke when the alert fires.
 
 * `custom_properties` - (Optional) Specifies the properties of an alert payload.
 
@@ -160,7 +182,9 @@ A `criteria` block supports the following:
 
 * `metric_measure_column` - (Optional) Specifies the column containing the metric measure number.
 
-* `resource_id_column` - (Optional) Specifies the column containing the resource id. The content of the column must be an uri formatted as resource id.
+-> **Note** `metric_measure_column` is required if `time_aggregation_method` is `Average`, `Maximum`, `Minimum`, or `Total`. And `metric_measure_column` can not be specified if `time_aggregation_method` is `Count`.
+
+* `resource_id_column` - (Optional) Specifies the column containing the resource ID. The content of the column must be an uri formatted as resource ID.
 
 ---
 
@@ -184,17 +208,39 @@ A `failing_periods` block supports the following:
 
 -> **Note** `number_of_evaluation_periods` must be `1` for queries that do not project timestamp column
 
+---
+
+An `identity` block supports the following:
+
+* `type` - (Required) Specifies the type of Managed Service Identity that should be configured on this Scheduled Query Rule. Possible values are `SystemAssigned`, `UserAssigned`.
+
+* `identity_ids` - (Optional) A list of User Assigned Managed Identity IDs to be assigned to this Scheduled Query Rule.
+
+~> **NOTE:** This is required when `type` is set to `UserAssigned`. The identity associated must have required roles, read the [Azure documentation](https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/alerts-create-log-alert-rule#configure-the-alert-rule-details) for more information.
+
 ## Attributes Reference
 
-The following Attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
-* `id` - The id of the Monitor Scheduled Query Rule.
+* `id` - The ID of the Monitor Scheduled Query Rule.
 
 * `created_with_api_version` - The api-version used when creating this alert rule.
 
 * `is_a_legacy_log_analytics_rule` - True if this alert rule is a legacy Log Analytic Rule.
 
 * `is_workspace_alerts_storage_configured` - The flag indicates whether this Scheduled Query Rule has been configured to be stored in the customer's storage.
+
+* `identity` - An `identity` block as defined below.
+
+---
+
+A `identity` block exports the following:
+
+* `principal_id` - The Principal ID for the Service Principal associated with the Managed Service Identity of this App Service slot.
+
+* `tenant_id` - The Tenant ID for the Service Principal associated with the Managed Service Identity of this App Service slot.
+
+-> You can access the Principal ID via `azurerm_monitor_scheduled_query_rules_alert_v2.example.identity[0].principal_id` and the Tenant ID via `azurerm_monitor_scheduled_query_rules_alert_v2.example.identity[0].tenant_id`
 
 ## Timeouts
 

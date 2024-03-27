@@ -73,7 +73,7 @@ The following arguments are supported:
 
 * `status` - (Optional) The status of the Subscription. Possible values are `Active`,`ReceiveDisabled`, or `Disabled`. Defaults to `Active`.
 
-* `client_scoped_subscription_enabled` - (Optional) whether the subscription is scoped to a client id. Defaults to `False`.
+* `client_scoped_subscription_enabled` - (Optional) whether the subscription is scoped to a client id. Defaults to `false`.
 
 ~> **NOTE:** Client Scoped Subscription can only be used for JMS subscription (Java Message Service).
 
@@ -93,7 +93,7 @@ A `client_scoped_subscription` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ServiceBus Subscription ID.
 

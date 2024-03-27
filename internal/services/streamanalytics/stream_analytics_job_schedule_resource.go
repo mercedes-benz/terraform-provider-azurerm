@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package streamanalytics
 
 import (
@@ -6,16 +9,17 @@ import (
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/date"
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
 	"github.com/hashicorp/go-azure-helpers/lang/response"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2020-03-01/streamingjobs"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2021-10-01-preview/streamingjobs"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/locks"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/sdk"
+	"github.com/hashicorp/terraform-provider-azurerm/internal/services/streamanalytics/migration"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/streamanalytics/parse"
 	streamAnalyticsValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/streamanalytics/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/validation"
-	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
 type JobScheduleResource struct{}
@@ -26,6 +30,8 @@ type JobScheduleResourceModel struct {
 	StartTime          string `tfschema:"start_time"`
 	LastOutputTime     string `tfschema:"last_output_time"`
 }
+
+var _ sdk.ResourceWithStateMigration = JobScheduleResource{}
 
 func (r JobScheduleResource) Arguments() map[string]*pluginsdk.Schema {
 	return map[string]*pluginsdk.Schema{
@@ -92,7 +98,7 @@ func (r JobScheduleResource) Create() sdk.ResourceFunc {
 			}
 
 			// This is a virtual resource so the last segment is hardcoded
-			id := parse.NewStreamingJobScheduleID(streamAnalyticsId.SubscriptionId, streamAnalyticsId.ResourceGroupName, streamAnalyticsId.JobName, "default")
+			id := parse.NewStreamingJobScheduleID(streamAnalyticsId.SubscriptionId, streamAnalyticsId.ResourceGroupName, streamAnalyticsId.StreamingJobName, "default")
 
 			locks.ByID(id.ID())
 			defer locks.UnlockByID(id.ID())
@@ -111,7 +117,7 @@ func (r JobScheduleResource) Create() sdk.ResourceFunc {
 			}
 
 			props := &streamingjobs.StartStreamingJobParameters{
-				OutputStartMode: utils.ToPtr(outputStartMode),
+				OutputStartMode: pointer.To(outputStartMode),
 			}
 
 			if outputStartMode == streamingjobs.OutputStartModeCustomTime {
@@ -122,7 +128,7 @@ func (r JobScheduleResource) Create() sdk.ResourceFunc {
 					outputStartTime := &date.Time{
 						Time: startTime,
 					}
-					props.OutputStartTime = utils.String(outputStartTime.String())
+					props.OutputStartTime = pointer.To(outputStartTime.String())
 				}
 			}
 
@@ -147,7 +153,7 @@ func (r JobScheduleResource) Read() sdk.ResourceFunc {
 				return err
 			}
 
-			streamAnalyticsId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroup, id.StreamingjobName)
+			streamAnalyticsId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroup, id.StreamingJobName)
 
 			var opts streamingjobs.GetOperationOptions
 			resp, err := client.Get(ctx, streamAnalyticsId, opts)
@@ -213,15 +219,15 @@ func (r JobScheduleResource) Update() sdk.ResourceFunc {
 				}
 
 				props := &streamingjobs.StartStreamingJobParameters{
-					OutputStartMode: utils.ToPtr(outputStartMode),
+					OutputStartMode: pointer.To(outputStartMode),
 				}
 
 				if outputStartMode == streamingjobs.OutputStartModeCustomTime {
-					props.OutputStartTime = utils.String(outputStartTime.String())
+					props.OutputStartTime = pointer.To(outputStartTime.String())
 				}
 
 				var opts streamingjobs.GetOperationOptions
-				streamingJobId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroup, id.StreamingjobName)
+				streamingJobId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroup, id.StreamingJobName)
 				existing, err := client.Get(ctx, streamingJobId, opts)
 				if err != nil {
 					return fmt.Errorf("retrieving %s: %+v", *id, err)
@@ -255,11 +261,20 @@ func (r JobScheduleResource) Delete() sdk.ResourceFunc {
 
 			metadata.Logger.Infof("deleting %s", *id)
 
-			streamingJobId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroup, id.StreamingjobName)
+			streamingJobId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroup, id.StreamingJobName)
 			if err := client.StopThenPoll(ctx, streamingJobId); err != nil {
 				return fmt.Errorf("deleting %s: %+v", *id, err)
 			}
 			return nil
+		},
+	}
+}
+
+func (r JobScheduleResource) StateUpgraders() sdk.StateUpgradeData {
+	return sdk.StateUpgradeData{
+		SchemaVersion: 1,
+		Upgraders: map[int]pluginsdk.StateUpgrade{
+			0: migration.StreamAnalyticsJobScheduleV0ToV1{},
 		},
 	}
 }

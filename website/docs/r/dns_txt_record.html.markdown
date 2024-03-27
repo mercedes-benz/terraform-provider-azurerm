@@ -65,11 +65,11 @@ The following arguments are supported:
 
 The `record` block supports:
 
-* `value` - (Required) The value of the record. Max length: 1024 characters
+* `value` - (Required) The value of the record. Max length: 4096 characters
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The DNS TXT Record ID.
 

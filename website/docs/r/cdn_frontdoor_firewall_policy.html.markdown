@@ -143,6 +143,8 @@ The following arguments are supported:
 
 * `mode` - (Required) The Front Door Firewall Policy mode. Possible values are `Detection`, `Prevention`.
 
+* `request_body_check_enabled` - (Optional) Should policy managed rules inspect the request body content? Defaults to `true`.
+
 -> **NOTE:** When run in `Detection` mode, the Front Door Firewall Policy doesn't take any other actions other than monitoring and logging the request and its matched Front Door Rule to the Web Application Firewall logs.
 
 * `redirect_url` - (Optional) If action type is redirect, this field represents redirect URL for the client.
@@ -243,9 +245,11 @@ An `exclusion` block supports the following:
 
 * `selector` - (Required) Selector for the value in the `match_variable` attribute this exclusion applies to.
 
+-> **NOTE:** `selector` must be set to `*` if `operator` is set to `EqualsAny`.
+
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Front Door Firewall Policy.
 

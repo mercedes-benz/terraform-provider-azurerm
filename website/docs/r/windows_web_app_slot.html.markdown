@@ -54,7 +54,7 @@ The following arguments are supported:
 
 * `name` - (Required) The name which should be used for this Windows Web App Slot. Changing this forces a new Windows Web App Slot to be created.
 
-* ~> **NOTE:** Terraform will perform a name availability check as part of the creation progress, if this Web App is part of an App Service Environment terraform will require Read permission on the App Service Environment for this to complete reliably.
+~> **NOTE:** Terraform will perform a name availability check as part of the creation progress, if this Web App is part of an App Service Environment terraform will require Read permission on the App Service Environment for this to complete reliably.
 
 * `app_service_id` - (Required) The ID of the Windows Web App this Deployment Slot will be part of. Changing this forces a new Windows Web App to be created.
 
@@ -64,7 +64,9 @@ The following arguments are supported:
 
 * `app_settings` - (Optional) A map of key-value pairs of App Settings.
 
-* `auth_settings` - (Optional) A `auth_settings` block as defined below.
+* `auth_settings` - (Optional) An `auth_settings` block as defined below.
+
+* `auth_settings_v2` - (Optional) An `auth_settings_v2` block as defined below.
 
 * `backup` - (Optional) A `backup` block as defined below.
 
@@ -72,7 +74,7 @@ The following arguments are supported:
 
 * `client_certificate_enabled` - (Optional) Should Client Certificates be enabled?
 
-* `client_certificate_mode` - (Optional) The Client Certificate mode. Possible values are `Required`, `Optional`, and `OptionalInteractiveUser`. This property has no effect when `client_cert_enabled` is `false`
+* `client_certificate_mode` - (Optional) The Client Certificate mode. Possible values are `Required`, `Optional`, and `OptionalInteractiveUser`. This property has no effect when `client_cert_enabled` is `false`. Defaults to `Required`.
 
 * `client_certificate_exclusion_paths` - (Optional) Paths to exclude when using client certificates, separated by ;
 
@@ -80,13 +82,21 @@ The following arguments are supported:
 
 * `enabled` - (Optional) Should the Windows Web App Slot be enabled? Defaults to `true`.
 
-* `https_only` - (Optional) Should the Windows Web App Slot require HTTPS connections.
+* `ftp_publish_basic_authentication_enabled` - (Optional) Should the default FTP Basic Authentication publishing profile be enabled. Defaults to `true`.
+
+* `https_only` - (Optional) Should the Windows Web App Slot require HTTPS connections. Defaults to `false`.
+
+* `public_network_access_enabled` - (Optional) Should public network access be enabled for the Web App. Defaults to `true`.
 
 * `identity` - (Optional) An `identity` block as defined below.
 
 * `key_vault_reference_identity_id` - (Optional) The User Assigned Identity ID used for accessing KeyVault secrets. The identity must be assigned to the application in the `identity` block. [For more information see - Access vaults with a user-assigned identity](https://docs.microsoft.com/azure/app-service/app-service-key-vault-references#access-vaults-with-a-user-assigned-identity)
 
 * `logs` - (Optional) A `logs` block as defined below.
+
+* `service_plan_id` - (Optional) The ID of the Service Plan in which to run this slot. If not specified the same Service Plan as the Windows Web App will be used.
+
+~> **Note:** `service_plan_id` should only be specified if it differs from the Service Plan of the associated Windows Web App.
 
 * `storage_account` - (Optional) One or more `storage_account` blocks as defined below.
 
@@ -99,6 +109,10 @@ The following arguments are supported:
 ~> **NOTE on regional virtual network integration:** The AzureRM Terraform provider provides regional virtual network integration via the standalone resource [app_service_virtual_network_swift_connection](app_service_virtual_network_swift_connection.html) and in-line within this resource using the `virtual_network_subnet_id` property. You cannot use both methods simultaneously. If the virtual network is set via the resource `app_service_virtual_network_swift_connection` then `ignore_changes` should be used in the web app slot configuration.
 
 ~> **Note:** Assigning the `virtual_network_subnet_id` property requires [RBAC permissions on the subnet](https://docs.microsoft.com/en-us/azure/app-service/overview-vnet-integration#permissions)
+
+* `webdeploy_publish_basic_authentication_enabled` - (Optional) Should the default WebDeploy Basic Authentication publishing credentials enabled. Defaults to `true`.
+
+~> **NOTE:** Setting this value to true will disable the ability to use `zip_deploy_file` which currently relies on the default publishing profile.
 
 * `zip_deploy_file` - (Optional) The local path and filename of the Zip packaged application to deploy to this Windows Web App.
 
@@ -132,7 +146,7 @@ A `application_logs` block supports the following:
 
 * `azure_blob_storage` - (Optional) An `azure_blob_storage` block as defined below.
 
-* `file_system_level` - (Required) Log level. Possible values include: `Verbose`, `Information`, `Warning`, and `Error`.
+* `file_system_level` - (Required) Log level. Possible values include: `Off`, `Verbose`, `Information`, `Warning`, and `Error`.
 
 ---
 
@@ -142,13 +156,21 @@ An `application_stack` block supports the following:
 
 ~> **NOTE:** Whilst this property is Optional omitting it can cause unexpected behaviour, in particular for display of settings in the Azure Portal.
 
-* `docker_container_name` - (Optional) The name of the Docker Container. For example `azure-app-service/samples/aspnethelloworld`
+* `docker_image_name` - (Optional) The docker image, including tag, to be used. e.g. `azure-app-service/windows/parkingpage:latest`.
 
-* `docker_container_registry` - (Optional) The registry Host on which the specified Docker Container can be located. For example `mcr.microsoft.com`
+* `docker_registry_url` - (Optional) The URL of the container registry where the `docker_image_name` is located. e.g. `https://index.docker.io` or `https://mcr.microsoft.com`. This value is required with `docker_image_name`.
 
-* `docker_container_tag` - (Optional) The Image Tag of the specified Docker Container to use. For example `latest`
+* `docker_registry_username` - (Optional) The User Name to use for authentication against the registry to pull the image.
 
-* `dotnet_version` - (Optional) The version of .NET to use when `current_stack` is set to `dotnet`. Possible values include `v2.0`,`v3.0`, `v4.0`, `v5.0`, `v6.0` and `v7.0`.
+* `docker_registry_password` - (Optional) The User Name to use for authentication against the registry to pull the image.
+
+~> **NOTE:** `docker_registry_url`, `docker_registry_username`, and `docker_registry_password` replace the use of the `app_settings` values of `DOCKER_REGISTRY_SERVER_URL`, `DOCKER_REGISTRY_SERVER_USERNAME` and `DOCKER_REGISTRY_SERVER_PASSWORD` respectively, these values will be managed by the provider and should not be specified in the `app_settings` map.
+
+* `docker_container_name` - (Optional) The name of the container to be used. This value is required with `docker_container_tag`.
+
+* `docker_container_tag` - (Optional) The tag of the container to be used. This value is required with `docker_container_name`.
+
+* `dotnet_version` - (Optional) The version of .NET to use when `current_stack` is set to `dotnet`. Possible values include `v2.0`,`v3.0`, `v4.0`, `v5.0`, `v6.0`, `v7.0` and `v8.0`.
 
 * `dotnet_core_version` - (Optional) The version of .NET to use when `current_stack` is set to `dotnetcore`. Possible values include `v4.0`.
 
@@ -162,7 +184,7 @@ An `application_stack` block supports the following:
 
 ~> **NOTE:** For compatible combinations of `java_version`, `java_container` and `java_container_version` users can use `az webapp list-runtimes` from command line.
 
-* `node_version` - (Optional) The version of node to use when `current_stack` is set to `node`. Possible values include `~12`, `~14`, `~16`, and `~18`.
+* `node_version` - (Optional) The version of node to use when `current_stack` is set to `node`. Possible values include `~12`, `~14`, `~16`, `~18` and `~20`.
 
 ~> **NOTE:** This property conflicts with `java_version`.
 
@@ -212,6 +234,234 @@ A `auth_settings` block supports the following:
 
 ---
 
+An `auth_settings_v2` block supports the following:
+
+* `auth_enabled` - (Optional) Should the AuthV2 Settings be enabled. Defaults to `false`.
+
+* `runtime_version` - (Optional) The Runtime Version of the Authentication and Authorisation feature of this App. Defaults to `~1`.
+
+* `config_file_path` - (Optional) The path to the App Auth settings.
+
+~> **Note:** Relative Paths are evaluated from the Site Root directory.
+
+* `require_authentication` - (Optional) Should the authentication flow be used for all requests.
+
+* `unauthenticated_action` - (Optional) The action to take for requests made without authentication. Possible values include `RedirectToLoginPage`, `AllowAnonymous`, `Return401`, and `Return403`. Defaults to `RedirectToLoginPage`.
+
+* `default_provider` - (Optional) The Default Authentication Provider to use when the `unauthenticated_action` is set to `RedirectToLoginPage`. Possible values include: `apple`, `azureactivedirectory`, `facebook`, `github`, `google`, `twitter` and the `name` of your `custom_oidc_v2` provider.
+
+~> **NOTE:** Whilst any value will be accepted by the API for `default_provider`, it can leave the app in an unusable state if this value does not correspond to the name of a known provider (either built-in value, or custom_oidc name) as it is used to build the auth endpoint URI.
+
+* `excluded_paths` - (Optional) The paths which should be excluded from the `unauthenticated_action` when it is set to `RedirectToLoginPage`.
+
+~> **NOTE:** This list should be used instead of setting `WEBSITE_WARMUP_PATH` in `app_settings` as it takes priority.
+
+* `require_https` - (Optional) Should HTTPS be required on connections? Defaults to `true`.
+
+* `http_route_api_prefix` - (Optional) The prefix that should precede all the authentication and authorisation paths. Defaults to `/.auth`.
+
+* `forward_proxy_convention` - (Optional) The convention used to determine the url of the request made. Possible values include `NoProxy`, `Standard`, `Custom`. Defaults to `NoProxy`.
+
+* `forward_proxy_custom_host_header_name` - (Optional) The name of the custom header containing the host of the request.
+
+* `forward_proxy_custom_scheme_header_name` - (Optional) The name of the custom header containing the scheme of the request.
+
+* `apple_v2` - (Optional) An `apple_v2` block as defined below.
+
+* `active_directory_v2` - (Optional) An `active_directory_v2` block as defined below.
+
+* `azure_static_web_app_v2` - (Optional) An `azure_static_web_app_v2` block as defined below.
+
+* `custom_oidc_v2` - (Optional) Zero or more `custom_oidc_v2` blocks as defined below.
+
+* `facebook_v2` - (Optional) A `facebook_v2` block as defined below.
+
+* `github_v2` - (Optional) A `github_v2` block as defined below.
+
+* `google_v2` - (Optional) A `google_v2` block as defined below.
+
+* `microsoft_v2` - (Optional) A `microsoft_v2` block as defined below.
+
+* `twitter_v2` - (Optional) A `twitter_v2` block as defined below.
+
+* `login` - (Required) A `login` block as defined below.
+
+---
+
+An `apple_v2` block supports the following:
+
+* `client_id` - (Required) The OpenID Connect Client ID for the Apple web application.
+
+* `client_secret_setting_name` - (Required) The app setting name that contains the `client_secret` value used for Apple Login.
+
+!> **NOTE:** A setting with this name must exist in `app_settings` to function correctly.
+
+* `login_scopes` - A list of Login Scopes provided by this Authentication Provider.
+
+~> **NOTE:** This is configured on the Authentication Provider side and is Read Only here.
+
+---
+
+An `active_directory_v2` block supports the following:
+
+* `client_id` - (Required) The ID of the Client to use to authenticate with Azure Active Directory.
+
+* `tenant_auth_endpoint` - (Required) The Azure Tenant Endpoint for the Authenticating Tenant. e.g. `https://login.microsoftonline.com/v2.0/{tenant-guid}/`
+
+* `client_secret_setting_name` - (Optional) The App Setting name that contains the client secret of the Client.
+
+!> **NOTE:** A setting with this name must exist in `app_settings` to function correctly.
+
+* `client_secret_certificate_thumbprint` - (Optional) The thumbprint of the certificate used for signing purposes.
+
+!> **NOTE:** If one `client_secret_setting_name` or `client_secret_certificate_thumbprint` is specified, terraform won't write the client secret or secret certificate thumbprint back to `app_setting`, so make sure they are existed in `app_settings` to function correctly.
+
+* `jwt_allowed_groups` - (Optional) A list of Allowed Groups in the JWT Claim.
+
+* `jwt_allowed_client_applications` - (Optional) A list of Allowed Client Applications in the JWT Claim.
+
+* `www_authentication_disabled` - (Optional) Should the www-authenticate provider should be omitted from the request? Defaults to `false`.
+
+* `allowed_groups` - (Optional) The list of allowed Group Names for the Default Authorisation Policy.
+
+* `allowed_identities` - (Optional) The list of allowed Identities for the Default Authorisation Policy.
+
+* `allowed_applications` - (Optional) The list of allowed Applications for the Default Authorisation Policy.
+
+* `login_parameters` - (Optional) A map of key-value pairs to send to the Authorisation Endpoint when a user logs in.
+
+* `allowed_audiences` - (Optional) Specifies a list of Allowed audience values to consider when validating JWTs issued by Azure Active Directory.
+
+~> **NOTE:** This is configured on the Authentication Provider side and is Read Only here.
+
+---
+
+An `azure_static_web_app_v2` block supports the following:
+
+* `client_id` - (Required) The ID of the Client to use to authenticate with Azure Static Web App Authentication.
+
+---
+
+A `custom_oidc_v2` block supports the following:
+
+* `name` - (Required) The name of the Custom OIDC Authentication Provider.
+
+~> **NOTE:** An `app_setting` matching this value in upper case with the suffix of `_PROVIDER_AUTHENTICATION_SECRET` is required. e.g. `MYOIDC_PROVIDER_AUTHENTICATION_SECRET` for a value of `myoidc`.
+
+* `client_id` - (Required) The ID of the Client to use to authenticate with the Custom OIDC.
+
+* `openid_configuration_endpoint` - (Required) The app setting name that contains the `client_secret` value used for the Custom OIDC Login.
+
+* `name_claim_type` - (Optional) The name of the claim that contains the users name.
+
+* `scopes` - (Optional) The list of the scopes that should be requested while authenticating.
+
+* `client_credential_method` - The Client Credential Method used.
+
+* `client_secret_setting_name` - The App Setting name that contains the secret for this Custom OIDC Client. This is generated from `name` above and suffixed with `_PROVIDER_AUTHENTICATION_SECRET`.
+
+* `authorisation_endpoint` - The endpoint to make the Authorisation Request as supplied by `openid_configuration_endpoint` response.
+
+* `token_endpoint` - The endpoint used to request a Token as supplied by `openid_configuration_endpoint` response.
+
+* `issuer_endpoint` - The endpoint that issued the Token as supplied by `openid_configuration_endpoint` response.
+
+* `certification_uri` - The endpoint that provides the keys necessary to validate the token as supplied by `openid_configuration_endpoint` response.
+
+---
+
+A `facebook_v2` block supports the following:
+
+* `app_id` - (Required) The App ID of the Facebook app used for login.
+
+* `app_secret_setting_name` - (Required) The app setting name that contains the `app_secret` value used for Facebook Login.
+
+!> **NOTE:** A setting with this name must exist in `app_settings` to function correctly.
+
+* `graph_api_version` - (Optional) The version of the Facebook API to be used while logging in.
+
+* `login_scopes` - (Optional) The list of scopes that should be requested as part of Facebook Login authentication.
+
+---
+
+A `github_v2` block supports the following:
+
+* `client_id` - (Required) The ID of the GitHub app used for login..
+
+* `client_secret_setting_name` - (Required) The app setting name that contains the `client_secret` value used for GitHub Login.
+
+!> **NOTE:** A setting with this name must exist in `app_settings` to function correctly.
+
+* `login_scopes` - (Optional) The list of OAuth 2.0 scopes that should be requested as part of GitHub Login authentication.
+
+---
+
+A `google_v2` block supports the following:
+
+* `client_id` - (Required) The OpenID Connect Client ID for the Google web application.
+
+* `client_secret_setting_name` - (Required) The app setting name that contains the `client_secret` value used for Google Login.
+
+!> **NOTE:** A setting with this name must exist in `app_settings` to function correctly.
+
+* `allowed_audiences` - (Optional) Specifies a list of Allowed Audiences that should be requested as part of Google Sign-In authentication.
+
+* `login_scopes` - (Optional) The list of OAuth 2.0 scopes that should be requested as part of Google Sign-In authentication.
+
+---
+
+A `microsoft_v2` block supports the following:
+
+* `client_id` - (Required) The OAuth 2.0 client ID that was created for the app used for authentication.
+
+* `client_secret_setting_name` - (Required) The app setting name containing the OAuth 2.0 client secret that was created for the app used for authentication.
+
+!> **NOTE:** A setting with this name must exist in `app_settings` to function correctly.
+
+* `allowed_audiences` - (Optional) Specifies a list of Allowed Audiences that will be requested as part of Microsoft Sign-In authentication.
+
+* `login_scopes` - (Optional) The list of Login scopes that should be requested as part of Microsoft Account authentication.
+
+---
+
+A `twitter_v2` block supports the following:
+
+* `consumer_key` - (Required) The OAuth 1.0a consumer key of the Twitter application used for sign-in.
+
+* `consumer_secret_setting_name` - (Required) The app setting name that contains the OAuth 1.0a consumer secret of the Twitter application used for sign-in.
+
+!> **NOTE:** A setting with this name must exist in `app_settings` to function correctly.
+
+---
+
+A `login` block supports the following:
+
+* `logout_endpoint` - (Optional) The endpoint to which logout requests should be made.
+
+* `token_store_enabled` - (Optional) Should the Token Store configuration Enabled. Defaults to `false`
+
+* `token_refresh_extension_time` - (Optional) The number of hours after session token expiration that a session token can be used to call the token refresh API. Defaults to `72` hours.
+
+* `token_store_path` - (Optional) The directory path in the App Filesystem in which the tokens will be stored.
+
+* `token_store_sas_setting_name` - (Optional) The name of the app setting which contains the SAS URL of the blob storage containing the tokens.
+
+* `preserve_url_fragments_for_logins` - (Optional) Should the fragments from the request be preserved after the login request is made. Defaults to `false`.
+
+* `allowed_external_redirect_urls` - (Optional) External URLs that can be redirected to as part of logging in or logging out of the app. This is an advanced setting typically only needed by Windows Store application backends.
+
+~> **Note:** URLs within the current domain are always implicitly allowed.
+
+* `cookie_expiration_convention` - (Optional) The method by which cookies expire. Possible values include: `FixedTime`, and `IdentityProviderDerived`. Defaults to `FixedTime`.
+
+* `cookie_expiration_time` - (Optional) The time after the request is made when the session cookie should expire. Defaults to `08:00:00`.
+
+* `validate_nonce` - (Optional) Should the nonce be validated while completing the login flow. Defaults to `true`.
+
+* `nonce_expiration_time` - (Optional) The time after the request is made when the nonce should expire. Defaults to `00:05:00`.
+
+---
+
 A `auto_heal_setting` block supports the following:
 
 * `action` - (Required) A `action` block as defined above.
@@ -224,7 +474,7 @@ A `azure_blob_storage` block supports the following:
 
 * `level` - (Required) The level at which to log. Possible values include `Error`, `Warning`, `Information`, `Verbose` and `Off`. **NOTE:** this field is not available for `http_logs`
 
-* `retention_in_days` - (Optional) The time in days after which to remove blobs. A value of `0` means no retention.
+* `retention_in_days` - (Required) The time in days after which to remove blobs. A value of `0` means no retention.
 
 * `sas_url` - (Required) SAS url to an Azure blob container with read/write/list/delete permissions.
 
@@ -244,6 +494,8 @@ A `backup` block supports the following:
 
 A `connection_string` block supports the following:
 
+* `name` - (Required) The name of the connection String.
+
 * `type` - (Required) Type of database. Possible values include: `APIHub`, `Custom`, `DocDb`, `EventHub`, `MySQL`, `NotificationHub`, `PostgreSQL`, `RedisCache`, `ServiceBus`, `SQLAzure`, and `SQLServer`.
 
 * `value` - (Required) The connection string value.
@@ -252,7 +504,7 @@ A `connection_string` block supports the following:
 
 A `cors` block supports the following:
 
-* `allowed_origins` - (Required) Specifies a list of origins that should be allowed to make cross-origin calls.
+* `allowed_origins` - (Optional) Specifies a list of origins that should be allowed to make cross-origin calls.
 
 * `support_credentials` - (Optional) Whether CORS requests with credentials are allowed. Defaults to `false`
 
@@ -326,9 +578,17 @@ A `headers` block supports the following:
 
 A `http_logs` block supports the following:
 
-* `azure_blob_storage` - (Optional) A `azure_blob_storage` block as defined above.
+* `azure_blob_storage` - (Optional) A `azure_blob_storage_http` block as defined above.
 
 * `file_system` - (Optional) A `file_system` block as defined above.
+
+---
+
+An `azure_blob_storage_http` block supports the following:
+
+* `retention_in_days` - (Optional) The time in days after which to remove blobs. A value of `0` means no retention.
+
+* `sas_url` - (Required) SAS url to an Azure blob container with read/write/list/delete permissions.
 
 ---
 
@@ -344,7 +604,7 @@ An `identity` block supports the following:
 
 A `ip_restriction` block supports the following:
 
-* `action` - (Optional) The action to take. Possible values are `Allow` or `Deny`.
+* `action` - (Optional) The action to take. Possible values are `Allow` or `Deny`. Defaults to `Allow`.
 
 * `headers` - (Optional) A `headers` block as defined above.
 
@@ -360,6 +620,7 @@ A `ip_restriction` block supports the following:
 
 ~> **NOTE:** One and only one of `ip_address`, `service_tag` or `virtual_network_subnet_id` must be specified.
 
+* `description` - (Optional) The Description of this IP Restriction.
 ---
 
 A `logs` block supports the following:
@@ -412,7 +673,7 @@ A `schedule` block supports the following:
 
 A `scm_ip_restriction` block supports the following:
 
-* `action` - (Optional) The action to take. Possible values are `Allow` or `Deny`.
+* `action` - (Optional) The action to take. Possible values are `Allow` or `Deny`. Defaults to `Allow`.
 
 * `headers` - (Optional) A `headers` block as defined above.
 
@@ -428,6 +689,7 @@ A `scm_ip_restriction` block supports the following:
 
 ~> **NOTE:** One and only one of `ip_address`, `service_tag` or `virtual_network_subnet_id` must be specified.
 
+* `description` - (Optional) The Description of this IP Restriction.
 ---
 
 A `site_config` block supports the following:
@@ -458,7 +720,7 @@ A `site_config` block supports the following:
 
 * `default_documents` - (Optional) Specifies a list of Default Documents for the Windows Web App Slot.
 
-* `ftps_state` - (Optional) The State of FTP / FTPS service. Possible values include: `AllAllowed`, `FtpsOnly`, `Disabled`.
+* `ftps_state` - (Optional) The State of FTP / FTPS service. Possible values include: `AllAllowed`, `FtpsOnly`, `Disabled`. Defaults to `Disabled`.
 
 ~> **NOTE:** Azure defaults this value to `AllAllowed`, however, in the interests of security Terraform will default this to `Disabled` to ensure the user makes a conscious choice to enable it.
 
@@ -470,11 +732,13 @@ A `site_config` block supports the following:
 
 * `ip_restriction` - (Optional) One or more `ip_restriction` blocks as defined above.
 
+* `ip_restriction_default_action` - (Optional) The Default action for traffic that does not match any `ip_restriction` rule. possible values include `Allow` and `Deny`. Defaults to `Allow`.
+
 * `load_balancing_mode` - (Optional) The Site load balancing. Possible values include: `WeightedRoundRobin`, `LeastRequests`, `LeastResponseTime`, `WeightedTotalTraffic`, `RequestHash`, `PerSiteRoundRobin`. Defaults to `LeastRequests` if omitted.
 
 * `local_mysql_enabled` - (Optional) Use Local MySQL. Defaults to `false`.
 
-* `managed_pipeline_mode` - (Optional) Managed pipeline mode. Possible values include: `Integrated`, `Classic`.
+* `managed_pipeline_mode` - (Optional) Managed pipeline mode. Possible values include: `Integrated`, `Classic`. Defaults to `Integrated`.
 
 * `minimum_tls_version` - (Optional) The configures the minimum version of TLS required for SSL requests. Possible values include: `1.0`, `1.1`, and `1.2`. Defaults to `1.2`.
 
@@ -484,17 +748,19 @@ A `site_config` block supports the following:
 
 * `scm_ip_restriction` - (Optional) One or more `scm_ip_restriction` blocks as defined above.
 
+* `scm_ip_restriction_default_action` - (Optional) The Default action for traffic that does not match any `scm_ip_restriction` rule. possible values include `Allow` and `Deny`. Defaults to `Allow`.
+
 * `scm_minimum_tls_version` - (Optional) The configures the minimum version of TLS required for SSL requests to the SCM site Possible values include: `1.0`, `1.1`, and `1.2`. Defaults to `1.2`.
 
 * `scm_use_main_ip_restriction` - (Optional) Should the Windows Web App Slot `ip_restriction` configuration be used for the SCM also.
 
-* `use_32_bit_worker` - (Optional) Should the Windows Web App Slotuse a 32-bit worker. Defaults to `true`.
+* `use_32_bit_worker` - (Optional) Should the Windows Web App Slot use a 32-bit worker. The default value varies from different service plans.
 
 * `virtual_application` - (Optional) One or more `virtual_application` blocks as defined below.
 
 * `vnet_route_all_enabled` - (Optional) Should all outbound traffic to have NAT Gateways, Network Security Groups and User Defined Routes applied? Defaults to `false`.
 
-* `websockets` - (Optional) Should Web Sockets be enabled. Defaults to `false`.
+* `websockets_enabled` - (Optional) Should Web Sockets be enabled. Defaults to `false`.
 
 * `worker_count` - (Optional) The number of Workers for this Windows App Service Slot.
 
@@ -524,7 +790,7 @@ A `status_code` block supports the following:
 
 * `sub_status` - (Optional) The Request Sub Status of the Status Code.
 
-* `win32_status` - (Optional) The Win32 Status Code of the Request.
+* `win32_status_code` - (Optional) The Win32 Status Code of the Request.
 
 ---
 
@@ -590,9 +856,9 @@ In addition to the Arguments listed above - the following Attributes are exporte
 
 * `id` - The ID of the Windows Web App Slot.
 
-* `app_metadata` - A `app_metadata` block as defined below.
-
 * `custom_domain_verification_id` - The identifier used by App Service to perform domain ownership verification via DNS TXT record.
+
+* `hosting_environment_id` - The ID of the App Service Environment used by App Service Slot.
 
 * `default_hostname` - The default hostname of the Windows Web App Slot.
 
@@ -604,7 +870,7 @@ In addition to the Arguments listed above - the following Attributes are exporte
 
 * `outbound_ip_addresses` - A comma separated list of outbound IP addresses - such as `52.23.25.3,52.143.43.12`.
 
-* `possible_outbound_ip_address_list` - A `possible_outbound_ip_address_list` block as defined below.
+* `possible_outbound_ip_address_list` - A list of possible outbound ip address.
 
 * `possible_outbound_ip_addresses` - A comma separated list of outbound IP addresses - such as `52.23.25.3,52.143.43.12,52.143.43.17` - not all of which are necessarily in use. Superset of `outbound_ip_addresses`.
 

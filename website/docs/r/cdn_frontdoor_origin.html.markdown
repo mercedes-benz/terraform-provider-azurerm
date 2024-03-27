@@ -126,6 +126,23 @@ resource "azurerm_cdn_frontdoor_profile" "example" {
   sku_name            = "Premium_AzureFrontDoor"
 }
 
+resource "azurerm_cdn_frontdoor_origin" example {
+  name                           = "origin-example"
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.example.id
+  enabled                        = true
+  host_name                      = "example.com"
+  origin_host_header             = "example.com"
+  priority                       = 1
+  weight                         = 1000
+  certificate_name_check_enabled = false
+
+  private_link {
+    request_message        = "Request access for Private Link Origin CDN Frontdoor"
+    location               = azurerm_resource_group.example.location
+    private_link_target_id = azurerm_private_link_service.example.id
+  }
+}
+
 resource "azurerm_cdn_frontdoor_origin_group" "example" {
   name                     = "group-example"
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.example.id
@@ -178,7 +195,7 @@ resource "azurerm_private_link_service" "example" {
   location            = azurerm_resource_group.example.location
 
   visibility_subscription_ids                 = [data.azurerm_client_config.current.subscription_id]
-  load_balancer_frontend_ip_configuration_ids = [azurerm_lb.example.frontend_ip_configuration.0.id]
+  load_balancer_frontend_ip_configuration_ids = [azurerm_lb.example.frontend_ip_configuration[0].id]
 
   nat_ip_configuration {
     name                       = "primary"

@@ -60,7 +60,7 @@ resource "azuread_directory_role" "reader" {
 
 resource "azuread_directory_role_member" "example" {
   role_object_id   = azuread_directory_role.reader.object_id
-  member_object_id = azurerm_mssql_managed_instance.example.identity.0.principal_id
+  member_object_id = azurerm_mssql_managed_instance.example.identity[0].principal_id
 }
 
 resource "azuread_user" "admin" {
@@ -94,7 +94,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the SQL Managed Instance Active Directory Administrator.
 

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package streamanalytics
 
 import (
@@ -5,15 +8,15 @@ import (
 	"log"
 	"time"
 
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
 	"github.com/hashicorp/go-azure-helpers/lang/response"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2020-03-01/outputs"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2021-10-01-preview/outputs"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/streamanalytics/migration"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/validation"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/timeouts"
-	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
 func resourceStreamAnalyticsOutputSql() *pluginsdk.Resource {
@@ -143,22 +146,22 @@ func resourceStreamAnalyticsOutputSqlCreateUpdate(d *pluginsdk.ResourceData, met
 	}
 
 	dataSourceProperties := outputs.AzureSqlDatabaseDataSourceProperties{
-		Server:             utils.String(d.Get("server").(string)),
-		Database:           utils.String(d.Get("database").(string)),
-		Table:              utils.String(d.Get("table").(string)),
-		MaxBatchCount:      utils.Float(d.Get("max_batch_count").(float64)),
-		MaxWriterCount:     utils.Float(d.Get("max_writer_count").(float64)),
-		AuthenticationMode: utils.ToPtr(outputs.AuthenticationMode(d.Get("authentication_mode").(string))),
+		Server:             pointer.To(d.Get("server").(string)),
+		Database:           pointer.To(d.Get("database").(string)),
+		Table:              pointer.To(d.Get("table").(string)),
+		MaxBatchCount:      pointer.To(d.Get("max_batch_count").(float64)),
+		MaxWriterCount:     pointer.To(d.Get("max_writer_count").(float64)),
+		AuthenticationMode: pointer.To(outputs.AuthenticationMode(d.Get("authentication_mode").(string))),
 	}
 
 	// Add user/password dataSourceProperties only if authentication mode requires them
 	if *dataSourceProperties.AuthenticationMode == outputs.AuthenticationModeConnectionString {
-		dataSourceProperties.User = utils.String(d.Get("user").(string))
-		dataSourceProperties.Password = utils.String(d.Get("password").(string))
+		dataSourceProperties.User = pointer.To(d.Get("user").(string))
+		dataSourceProperties.Password = pointer.To(d.Get("password").(string))
 	}
 
 	props := outputs.Output{
-		Name: utils.String(id.OutputName),
+		Name: pointer.To(id.OutputName),
 		Properties: &outputs.OutputProperties{
 			Datasource: &outputs.AzureSqlDatabaseOutputDataSource{
 				Properties: &dataSourceProperties,
@@ -203,7 +206,7 @@ func resourceStreamAnalyticsOutputSqlRead(d *pluginsdk.ResourceData, meta interf
 	}
 
 	d.Set("name", id.OutputName)
-	d.Set("stream_analytics_job_name", id.JobName)
+	d.Set("stream_analytics_job_name", id.StreamingJobName)
 	d.Set("resource_group_name", id.ResourceGroupName)
 
 	if model := resp.Model; model != nil {

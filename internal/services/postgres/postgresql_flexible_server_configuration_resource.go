@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package postgres
 
 import (
@@ -71,10 +74,10 @@ func resourceFlexibleServerConfigurationUpdate(d *pluginsdk.ResourceData, meta i
 	if err != nil {
 		return err
 	}
-	id := configurations.NewConfigurationID(subscriptionId, serverId.ResourceGroupName, serverId.ServerName, d.Get("name").(string))
+	id := configurations.NewConfigurationID(subscriptionId, serverId.ResourceGroupName, serverId.FlexibleServerName, d.Get("name").(string))
 
-	locks.ByName(id.ServerName, postgresqlFlexibleServerResourceName)
-	defer locks.UnlockByName(id.ServerName, postgresqlFlexibleServerResourceName)
+	locks.ByName(id.FlexibleServerName, postgresqlFlexibleServerResourceName)
+	defer locks.UnlockByName(id.FlexibleServerName, postgresqlFlexibleServerResourceName)
 
 	props := configurations.Configuration{
 		Properties: &configurations.ConfigurationProperties{
@@ -92,16 +95,18 @@ func resourceFlexibleServerConfigurationUpdate(d *pluginsdk.ResourceData, meta i
 		return fmt.Errorf("retrieving %s: %+v", id, err)
 	}
 
-	if model := resp.Model; model != nil {
+	if model := resp.Model; model != nil && model.Properties != nil {
 		props := model.Properties
 
 		if isDynamicConfig := props.IsDynamicConfig; isDynamicConfig != nil && !*isDynamicConfig {
 			if isReadOnly := props.IsReadOnly; isReadOnly != nil && !*isReadOnly {
-				restartClient := meta.(*clients.Client).Postgres.ServerRestartClient
-				restartServerId := serverrestart.NewFlexibleServerID(id.SubscriptionId, id.ResourceGroupName, id.ServerName)
+				if meta.(*clients.Client).Features.PostgresqlFlexibleServer.RestartServerOnConfigurationValueChange {
+					restartClient := meta.(*clients.Client).Postgres.ServerRestartClient
+					restartServerId := serverrestart.NewFlexibleServerID(id.SubscriptionId, id.ResourceGroupName, id.FlexibleServerName)
 
-				if err = restartClient.ServersRestartThenPoll(ctx, restartServerId, serverrestart.RestartParameter{}); err != nil {
-					return fmt.Errorf("restarting server %s: %+v", id, err)
+					if err = restartClient.ServersRestartThenPoll(ctx, restartServerId, serverrestart.RestartParameter{}); err != nil {
+						return fmt.Errorf("restarting server %s: %+v", id, err)
+					}
 				}
 			}
 		}
@@ -135,7 +140,7 @@ func resourceFlexibleServerConfigurationRead(d *pluginsdk.ResourceData, meta int
 	}
 
 	d.Set("name", id.ConfigurationName)
-	d.Set("server_id", configurations.NewFlexibleServerID(subscriptionId, id.ResourceGroupName, id.ServerName).ID())
+	d.Set("server_id", configurations.NewFlexibleServerID(subscriptionId, id.ResourceGroupName, id.FlexibleServerName).ID())
 
 	if resp.Model != nil && resp.Model.Properties != nil {
 		d.Set("value", resp.Model.Properties.Value)
@@ -154,8 +159,8 @@ func resourceFlexibleServerConfigurationDelete(d *pluginsdk.ResourceData, meta i
 		return err
 	}
 
-	locks.ByName(id.ServerName, postgresqlFlexibleServerResourceName)
-	defer locks.UnlockByName(id.ServerName, postgresqlFlexibleServerResourceName)
+	locks.ByName(id.FlexibleServerName, postgresqlFlexibleServerResourceName)
+	defer locks.UnlockByName(id.FlexibleServerName, postgresqlFlexibleServerResourceName)
 
 	resp, err := client.Get(ctx, *id)
 	if err != nil {
@@ -183,11 +188,13 @@ func resourceFlexibleServerConfigurationDelete(d *pluginsdk.ResourceData, meta i
 
 		if isDynamicConfig := props.IsDynamicConfig; isDynamicConfig != nil && !*isDynamicConfig {
 			if isReadOnly := props.IsReadOnly; isReadOnly != nil && !*isReadOnly {
-				restartClient := meta.(*clients.Client).Postgres.ServerRestartClient
-				restartServerId := serverrestart.NewFlexibleServerID(id.SubscriptionId, id.ResourceGroupName, id.ServerName)
+				if meta.(*clients.Client).Features.PostgresqlFlexibleServer.RestartServerOnConfigurationValueChange {
+					restartClient := meta.(*clients.Client).Postgres.ServerRestartClient
+					restartServerId := serverrestart.NewFlexibleServerID(id.SubscriptionId, id.ResourceGroupName, id.FlexibleServerName)
 
-				if err = restartClient.ServersRestartThenPoll(ctx, restartServerId, serverrestart.RestartParameter{}); err != nil {
-					return fmt.Errorf("restarting server %s: %+v", id, err)
+					if err = restartClient.ServersRestartThenPoll(ctx, restartServerId, serverrestart.RestartParameter{}); err != nil {
+						return fmt.Errorf("restarting server %s: %+v", id, err)
+					}
 				}
 			}
 		}

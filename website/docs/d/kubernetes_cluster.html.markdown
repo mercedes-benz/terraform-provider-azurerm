@@ -46,6 +46,8 @@ The following attributes are exported:
 
 * `agent_pool_profile` - An `agent_pool_profile` block as documented below.
 
+* `current_kubernetes_version` - Contains the current version of Kubernetes running on the Cluster.
+
 * `dns_prefix` - The DNS Prefix of the managed Kubernetes cluster.
 
 * `fqdn` - The FQDN of the Azure Kubernetes Managed Cluster.
@@ -98,6 +100,8 @@ The following attributes are exported:
 
 * `node_resource_group` - Auto-generated Resource Group containing AKS Cluster resources.
 
+* `node_resource_group_id` - The ID of the Resource Group containing the resources for this Managed Kubernetes Cluster.
+
 * `role_based_access_control_enabled` - Is Role Based Access Control enabled for this managed Kubernetes Cluster?
 
 * `service_principal` - A `service_principal` block as documented below.
@@ -109,6 +113,8 @@ The following attributes are exported:
 * `kubelet_identity` - A `kubelet_identity` block as documented below.
 
 * `tags` - A mapping of tags assigned to this resource.
+
+* `custom_ca_trust_certificates_base64` - A list of custom base64 encoded CAs used by this Managed Kubernetes Cluster.
 
 ---
 
@@ -216,12 +222,12 @@ The `kube_admin_config` and `kube_config` blocks export the following:
 
 ```hcl
 provider "kubernetes" {
-  host                   = data.azurerm_kubernetes_cluster.main.kube_config.0.host
-  username               = data.azurerm_kubernetes_cluster.main.kube_config.0.username
-  password               = data.azurerm_kubernetes_cluster.main.kube_config.0.password
-  client_certificate     = base64decode(data.azurerm_kubernetes_cluster.main.kube_config.0.client_certificate)
-  client_key             = base64decode(data.azurerm_kubernetes_cluster.main.kube_config.0.client_key)
-  cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate)
+  host                   = data.azurerm_kubernetes_cluster.main.kube_config[0].host
+  username               = data.azurerm_kubernetes_cluster.main.kube_config[0].username
+  password               = data.azurerm_kubernetes_cluster.main.kube_config[0].password
+  client_certificate     = base64decode(data.azurerm_kubernetes_cluster.main.kube_config[0].client_certificate)
+  client_key             = base64decode(data.azurerm_kubernetes_cluster.main.kube_config[0].client_key)
+  cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.main.kube_config[0].cluster_ca_certificate)
 }
 ```
 
@@ -268,6 +274,8 @@ A `network_profile` block exports the following:
 An `oms_agent` block exports the following:
 
 * `log_analytics_workspace_id` - The ID of the Log Analytics Workspace to which the OMS Agent should send data.
+
+* `msi_auth_for_monitoring_enabled` - Is managed identity authentication for monitoring enabled?
 
 * `oms_agent_identity` - An `oms_agent_identity` block as defined below.  
 
@@ -347,8 +355,6 @@ An `identity` block exports the following:
 
 * `identity_ids` - The list of User Assigned Managed Identity IDs assigned to this Kubernetes Cluster.
 
--> **NOTE:** Currently only one User Assigned Identity is supported.
-
 ---
 
 The `kubelet_identity` block exports the following:
@@ -364,6 +370,20 @@ The `kubelet_identity` block exports the following:
 A `ssh_key` block exports the following:
 
 * `key_data` - The Public SSH Key used to access the cluster.
+
+---
+
+A `service_mesh_profile` block exports the following:
+
+* `mode` - The mode of the service mesh.
+
+* `internal_ingress_gateway_enabled` - Is Istio Internal Ingress Gateway enabled?
+
+* `external_ingress_gateway_enabled` - Is Istio External Ingress Gateway enabled?
+
+-> **Note:** This requires that the Preview Feature `Microsoft.ContainerService/AzureServiceMeshPreview` is enabled and the Resource Provider is re-registered, see [the documentation](https://learn.microsoft.com/en-us/azure/aks/istio-deploy-addon#register-the-azureservicemeshpreview-feature-flag) for more information.
+
+---
 
 ## Timeouts
 

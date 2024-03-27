@@ -50,7 +50,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Application Insights Smart Detection Rule.
 
@@ -68,5 +68,5 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 Application Insights Smart Detection Rules can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_application_insights_smart_detection_rule.rule1 /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mygroup1/providers/Microsoft.Insights/components/mycomponent1/smartDetectionRule/myrule1
+terraform import azurerm_application_insights_smart_detection_rule.rule1 /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mygroup1/providers/Microsoft.Insights/components/mycomponent1/proactiveDetectionConfig/myrule1
 ```

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package trafficmanager
 
 import (
@@ -6,8 +9,8 @@ import (
 
 	"github.com/hashicorp/go-azure-helpers/lang/response"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/location"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/trafficmanager/2018-08-01/endpoints"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/trafficmanager/2018-08-01/profiles"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/trafficmanager/2022-04-01/endpoints"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/trafficmanager/2022-04-01/profiles"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/azure"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
 	azValidate "github.com/hashicorp/terraform-provider-azurerm/helpers/validate"
@@ -173,7 +176,7 @@ func resourceNestedEndpointCreateUpdate(d *pluginsdk.ResourceData, meta interfac
 		return fmt.Errorf("parsing `profile_id`: %+v", err)
 	}
 
-	id := endpoints.NewEndpointTypeID(profileId.SubscriptionId, profileId.ResourceGroupName, profileId.ProfileName, endpoints.EndpointTypeNestedEndpoints, d.Get("name").(string))
+	id := endpoints.NewEndpointTypeID(profileId.SubscriptionId, profileId.ResourceGroupName, profileId.TrafficManagerProfileName, endpoints.EndpointTypeNestedEndpoints, d.Get("name").(string))
 
 	if d.IsNewResource() {
 		existing, err := client.Get(ctx, id)
@@ -264,7 +267,7 @@ func resourceNestedEndpointRead(d *pluginsdk.ResourceData, meta interface{}) err
 	}
 
 	d.Set("name", id.EndpointName)
-	d.Set("profile_id", profiles.NewTrafficManagerProfileID(id.SubscriptionId, id.ResourceGroupName, id.ProfileName).ID())
+	d.Set("profile_id", profiles.NewTrafficManagerProfileID(id.SubscriptionId, id.ResourceGroupName, id.TrafficManagerProfileName).ID())
 
 	if model := resp.Model; model != nil {
 		if props := model.Properties; props != nil {

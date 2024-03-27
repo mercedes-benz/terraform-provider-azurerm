@@ -103,7 +103,7 @@ A `request` block supports the following:
 
 * `header` - (Optional) One or more `header` blocks as defined above.
 
-* `http_verb` - (Optional) Which HTTP verb to use for the call. Options are 'GET', 'POST', 'PUT', 'PATCH', and 'DELETE'.
+* `http_verb` - (Optional) Which HTTP verb to use for the call. Options are 'GET', 'POST', 'PUT', 'PATCH', and 'DELETE'. Defaults to `GET`.
 
 * `parse_dependent_requests_enabled` - (Optional) Should the parsing of dependend requests be enabled? Defaults to `true`.
 
@@ -115,7 +115,7 @@ A `validation_rules` block supports the following:
 
 * `expected_status_code` - (Optional) The expected status code of the response. Default is '200', '0' means 'response code < 400'
 
-* `ssl_cert_remaining_lifetime` - (Optional) The number of days of SSL certificate validity remaining for the checked endpoint. If the certificate has a shorter remaining lifetime left, the test will fail.
+* `ssl_cert_remaining_lifetime` - (Optional) The number of days of SSL certificate validity remaining for the checked endpoint. If the certificate has a shorter remaining lifetime left, the test will fail. This number should be between 1 and 365.
 
 * `ssl_check_enabled` - (Optional) Should the SSL check be enabled?
 
@@ -141,5 +141,5 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 Application Insights Standard WebTests can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_application_insights_standard_web_test.example /subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Insights/webTests/appinsightswebtest
+terraform import azurerm_application_insights_standard_web_test.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg1/providers/Microsoft.Insights/webTests/appinsightswebtest
 ```

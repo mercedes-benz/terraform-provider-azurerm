@@ -46,7 +46,7 @@ The following arguments are supported:
 
 * `scope` - (Required) The scope of the Maintenance Configuration. Possible values are `Extension`, `Host`, `InGuestPatch`, `OSImage`, `SQLDB` or `SQLManagedInstance`.
 
-* `visibility` - (Optional) The visibility of the Maintenance Configuration. The only allowable value is `Custom`.
+* `visibility` - (Optional) The visibility of the Maintenance Configuration. The only allowable value is `Custom`. Defaults to `Custom`.
 
 * `window` - (Optional) A `window` block as defined below.
 
@@ -108,7 +108,7 @@ A `windows` block supports:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Maintenance Configuration.
 

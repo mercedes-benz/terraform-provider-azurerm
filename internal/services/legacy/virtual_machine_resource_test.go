@@ -1,18 +1,22 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package legacy_test
 
 import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
-	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2022-03-02/disks"
+	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/compute/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/blob/blobs"
+	"github.com/tombuildsstuff/giovanni/storage/2023-11-03/blob/blobs"
 )
 
 type VirtualMachineResource struct{}
@@ -98,12 +102,12 @@ func TestAccVirtualMachine_withPPG(t *testing.T) {
 }
 
 func (VirtualMachineResource) Exists(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.VirtualMachineID(state.ID)
+	id, err := commonids.ParseVirtualMachineID(state.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := clients.Legacy.VMClient.Get(ctx, id.ResourceGroup, id.Name, "")
+	resp, err := clients.Legacy.VMClient.Get(ctx, id.ResourceGroupName, id.VirtualMachineName, "")
 	if err != nil {
 		return nil, fmt.Errorf("retrieving Compute Virtual Machine %q", id)
 	}
@@ -113,7 +117,7 @@ func (VirtualMachineResource) Exists(ctx context.Context, clients *clients.Clien
 
 func (VirtualMachineResource) managedDiskDelete(diskId *string) acceptance.ClientCheckFunc {
 	return func(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) error {
-		id, err := disks.ParseDiskID(*diskId)
+		id, err := commonids.ParseManagedDiskID(*diskId)
 		if err != nil {
 			return err
 		}
@@ -141,7 +145,7 @@ func (VirtualMachineResource) managedDiskDelete(diskId *string) acceptance.Clien
 
 func (VirtualMachineResource) managedDiskExists(diskId *string, shouldExist bool) acceptance.ClientCheckFunc {
 	return func(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) error {
-		id, err := disks.ParseDiskID(*diskId)
+		id, err := commonids.ParseManagedDiskID(*diskId)
 		if err != nil {
 			return err
 		}
@@ -168,12 +172,12 @@ func (VirtualMachineResource) managedDiskExists(diskId *string, shouldExist bool
 
 func (VirtualMachineResource) findManagedDiskID(field string, managedDiskID *string) acceptance.ClientCheckFunc {
 	return func(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) error {
-		id, err := parse.VirtualMachineID(state.ID)
+		id, err := commonids.ParseVirtualMachineID(state.ID)
 		if err != nil {
 			return err
 		}
 
-		virtualMachine, err := clients.Legacy.VMClient.Get(ctx, id.ResourceGroup, id.Name, "")
+		virtualMachine, err := clients.Legacy.VMClient.Get(ctx, id.ResourceGroupName, id.VirtualMachineName, "")
 		if err != nil {
 			return err
 		}
@@ -213,13 +217,13 @@ func (VirtualMachineResource) findManagedDiskID(field string, managedDiskID *str
 }
 
 func (VirtualMachineResource) deallocate(ctx context.Context, client *clients.Client, state *pluginsdk.InstanceState) error {
-	vmID, err := parse.VirtualMachineID(state.ID)
+	vmID, err := commonids.ParseVirtualMachineID(state.ID)
 	if err != nil {
 		return err
 	}
 
-	name := vmID.Name
-	resourceGroup := vmID.ResourceGroup
+	name := vmID.VirtualMachineName
+	resourceGroup := vmID.ResourceGroupName
 
 	// Upgrading to the 2021-07-01 exposed a new hibernate parameter in the GET method
 	future, err := client.Legacy.VMClient.Deallocate(ctx, resourceGroup, name, utils.Bool(false))
@@ -236,6 +240,9 @@ func (VirtualMachineResource) deallocate(ctx context.Context, client *clients.Cl
 
 func (VirtualMachineResource) unmanagedDiskExistsInContainer(blobName string, shouldExist bool) acceptance.ClientCheckFunc {
 	return func(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) error {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+
 		accountName := state.Attributes["storage_account_name"]
 		containerName := state.Attributes["name"]
 
@@ -247,15 +254,15 @@ func (VirtualMachineResource) unmanagedDiskExistsInContainer(blobName string, sh
 			return fmt.Errorf("Unable to locate Storage Account %q!", accountName)
 		}
 
-		client, err := clients.Storage.BlobsClient(ctx, *account)
+		client, err := clients.Storage.BlobsDataPlaneClient(ctx, *account, clients.Storage.DataPlaneOperationSupportingAnyAuthMethod())
 		if err != nil {
 			return fmt.Errorf("building Blobs Client: %s", err)
 		}
 
 		input := blobs.GetPropertiesInput{}
-		props, err := client.GetProperties(ctx, accountName, containerName, blobName, input)
+		props, err := client.GetProperties(ctx, containerName, blobName, input)
 		if err != nil {
-			if utils.ResponseWasNotFound(props.Response) {
+			if response.WasNotFound(props.HttpResponse) {
 				if !shouldExist {
 					return nil
 				}
@@ -441,8 +448,8 @@ resource "azurerm_virtual_machine" "test" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "16.04-LTS"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
     version   = "latest"
   }
 
@@ -547,8 +554,8 @@ resource "azurerm_virtual_machine" "test" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "16.04-LTS"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
     version   = "latest"
   }
 
@@ -653,8 +660,8 @@ resource "azurerm_virtual_machine" "test" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "16.04-LTS"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
     version   = "latest"
   }
 
@@ -759,8 +766,8 @@ resource "azurerm_virtual_machine" "test" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "16.04-LTS"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
     version   = "latest"
   }
 

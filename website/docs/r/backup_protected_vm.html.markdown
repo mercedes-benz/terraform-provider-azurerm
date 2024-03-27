@@ -34,10 +34,13 @@ resource "azurerm_backup_policy_vm" "example" {
     frequency = "Daily"
     time      = "23:00"
   }
+  retention_daily {
+    count = 10
+  }
 }
 
 data "azurerm_virtual_machine" "example" {
-  name                = "production"
+  name                = "example-vm"
   resource_group_name = azurerm_resource_group.example.name
 }
 
@@ -53,7 +56,7 @@ resource "azurerm_backup_protected_vm" "vm1" {
 
 The following arguments are supported:
 
-* `resource_group_name` - (Required) The name of the resource group in which to create the Recovery Services Vault. Changing this forces a new resource to be created.
+* `resource_group_name` - (Required) Specifies the name of the Resource Group **associated with** the Recovery Services Vault to use. Changing this forces a new resource to be created.
 
 * `recovery_vault_name` - (Required) Specifies the name of the Recovery Services Vault to use. Changing this forces a new resource to be created.
 
@@ -62,15 +65,17 @@ The following arguments are supported:
 ~> **NOTE:** After creation, the `source_vm_id` property can be removed without forcing a new resource to be created; however, setting it to a different ID will create a new resource.
 This allows the source vm to be deleted without having to remove the backup.
 
-* `backup_policy_id` - (Required) Specifies the id of the backup policy to use.
+* `backup_policy_id` - (Optional) Specifies the id of the backup policy to use. Required in creation or when `protection_stopped` is not specified.
 
 * `exclude_disk_luns` - (Optional) A list of Disks' Logical Unit Numbers(LUN) to be excluded for VM Protection.
 
 * `include_disk_luns` - (Optional) A list of Disks' Logical Unit Numbers(LUN) to be included for VM Protection.
 
+* `protection_state` - (Optional) Specifies Protection state of the backup. Possible values are `Invalid`, `IRPending`, `Protected`, `ProtectionStopped`, `ProtectionError` and `ProtectionPaused`.
+
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Backup Protected Virtual Machine.
 
@@ -78,8 +83,8 @@ The following attributes are exported:
 
 The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
 
-* `create` - (Defaults to 80 minutes) Used when creating the Backup Protected Virtual Machine.
-* `update` - (Defaults to 80 minutes) Used when updating the Backup Protected Virtual Machine.
+* `create` - (Defaults to 120 minutes) Used when creating the Backup Protected Virtual Machine.
+* `update` - (Defaults to 120 minutes) Used when updating the Backup Protected Virtual Machine.
 * `read` - (Defaults to 5 minutes) Used when retrieving the Backup Protected Virtual Machine.
 * `delete` - (Defaults to 80 minutes) Used when deleting the Backup Protected Virtual Machine.
 

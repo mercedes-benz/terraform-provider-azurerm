@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package dataprotection
 
 import (
@@ -9,7 +12,7 @@ import (
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/location"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/tags"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/dataprotection/2022-04-01/resourceguards"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/dataprotection/2023-05-01/resourceguards"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/dataprotection/validate"
@@ -123,7 +126,7 @@ func resourceDataProtectionResourceGuardRead(d *pluginsdk.ResourceData, meta int
 		return fmt.Errorf("retrieving %s: %+v", *id, err)
 	}
 
-	d.Set("name", id.ResourceGuardsName)
+	d.Set("name", id.ResourceGuardName)
 	d.Set("resource_group_name", id.ResourceGroupName)
 
 	if model := resp.Model; model != nil {

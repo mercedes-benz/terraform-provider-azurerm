@@ -1,302 +1,104 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package client
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2021-09-01/storage"         // nolint: staticcheck
-	"github.com/Azure/azure-sdk-for-go/services/storagesync/mgmt/2020-03-01/storagesync" // nolint: staticcheck
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure"
-	storage_v2022_05_01 "github.com/hashicorp/go-azure-sdk/resource-manager/storage/2022-05-01"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/storage/2022-05-01/localusers"
+	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2021-09-01/storage" // nolint: staticcheck
+	storage_v2023_01_01 "github.com/hashicorp/go-azure-sdk/resource-manager/storage/2023-01-01"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/storagesync/2020-03-01/cloudendpointresource"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/storagesync/2020-03-01/storagesyncservicesresource"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/storagesync/2020-03-01/syncgroupresource"
+	"github.com/hashicorp/go-azure-sdk/sdk/auth"
+	"github.com/hashicorp/go-azure-sdk/sdk/client/resourcemanager"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/common"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/shim"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/blob/accounts"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/blob/blobs"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/blob/containers"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/datalakestore/filesystems"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/datalakestore/paths"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/queue/queues"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/table/entities"
-	"github.com/tombuildsstuff/giovanni/storage/2019-12-12/table/tables"
-	"github.com/tombuildsstuff/giovanni/storage/2020-08-04/file/directories"
-	"github.com/tombuildsstuff/giovanni/storage/2020-08-04/file/files"
-	"github.com/tombuildsstuff/giovanni/storage/2020-08-04/file/shares"
 )
 
+// StorageDomainSuffix is used by validation functions
+var StorageDomainSuffix *string
+
 type Client struct {
-	AccountsClient              *storage.AccountsClient
-	LocalUsersClient            *localusers.LocalUsersClient
-	FileSystemsClient           *filesystems.Client
-	ADLSGen2PathsClient         *paths.Client
-	ManagementPoliciesClient    *storage.ManagementPoliciesClient
-	BlobServicesClient          *storage.BlobServicesClient
-	BlobInventoryPoliciesClient *storage.BlobInventoryPoliciesClient
-	CloudEndpointsClient        *storagesync.CloudEndpointsClient
-	EncryptionScopesClient      *storage.EncryptionScopesClient
-	Environment                 azure.Environment
-	FileServicesClient          *storage.FileServicesClient
-	SyncServiceClient           *storagesync.ServicesClient
-	SyncGroupsClient            *storagesync.SyncGroupsClient
-	SubscriptionId              string
+	AccountsClient           *storage.AccountsClient
+	BlobServicesClient       *storage.BlobServicesClient
+	EncryptionScopesClient   *storage.EncryptionScopesClient
+	FileServicesClient       *storage.FileServicesClient
+	SyncCloudEndpointsClient *cloudendpointresource.CloudEndpointResourceClient
+	SyncGroupsClient         *syncgroupresource.SyncGroupResourceClient
+	SyncServiceClient        *storagesyncservicesresource.StorageSyncServicesResourceClient
 
-	ResourceManager *storage_v2022_05_01.Client
+	ResourceManager *storage_v2023_01_01.Client
 
-	resourceManagerAuthorizer autorest.Authorizer
-	storageAdAuth             *autorest.Authorizer
+	StorageDomainSuffix string
+
+	authorizerForAad auth.Authorizer
 }
 
-func NewClient(options *common.ClientOptions) *Client {
-	accountsClient := storage.NewAccountsClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&accountsClient.Client, options.ResourceManagerAuthorizer)
+func NewClient(o *common.ClientOptions) (*Client, error) {
+	storageSuffix, ok := o.Environment.Storage.DomainSuffix()
+	if !ok {
+		return nil, fmt.Errorf("determining domain suffix for storage in environment: %s", o.Environment.Name)
+	}
 
-	localUsersClient := localusers.NewLocalUsersClientWithBaseURI(options.ResourceManagerEndpoint)
-	localUsersClient.Client.Authorizer = options.ResourceManagerAuthorizer
+	// Set global variable for post-configure validation
+	StorageDomainSuffix = storageSuffix
 
-	fileSystemsClient := filesystems.NewWithEnvironment(options.Environment)
-	options.ConfigureClient(&fileSystemsClient.Client, options.StorageAuthorizer)
+	accountsClient := storage.NewAccountsClientWithBaseURI(o.ResourceManagerEndpoint, o.SubscriptionId)
+	o.ConfigureClient(&accountsClient.Client, o.ResourceManagerAuthorizer)
 
-	adlsGen2PathsClient := paths.NewWithEnvironment(options.Environment)
-	options.ConfigureClient(&adlsGen2PathsClient.Client, options.StorageAuthorizer)
+	blobServicesClient := storage.NewBlobServicesClientWithBaseURI(o.ResourceManagerEndpoint, o.SubscriptionId)
+	o.ConfigureClient(&blobServicesClient.Client, o.ResourceManagerAuthorizer)
 
-	managementPoliciesClient := storage.NewManagementPoliciesClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&managementPoliciesClient.Client, options.ResourceManagerAuthorizer)
+	encryptionScopesClient := storage.NewEncryptionScopesClientWithBaseURI(o.ResourceManagerEndpoint, o.SubscriptionId)
+	o.ConfigureClient(&encryptionScopesClient.Client, o.ResourceManagerAuthorizer)
 
-	blobServicesClient := storage.NewBlobServicesClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&blobServicesClient.Client, options.ResourceManagerAuthorizer)
+	fileServicesClient := storage.NewFileServicesClientWithBaseURI(o.ResourceManagerEndpoint, o.SubscriptionId)
+	o.ConfigureClient(&fileServicesClient.Client, o.ResourceManagerAuthorizer)
 
-	blobInventoryPoliciesClient := storage.NewBlobInventoryPoliciesClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&blobInventoryPoliciesClient.Client, options.ResourceManagerAuthorizer)
+	resourceManager, err := storage_v2023_01_01.NewClientWithBaseURI(o.Environment.ResourceManager, func(c *resourcemanager.Client) {
+		o.Configure(c, o.Authorizers.ResourceManager)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("building ResourceManager clients: %+v", err)
+	}
 
-	cloudEndpointsClient := storagesync.NewCloudEndpointsClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&cloudEndpointsClient.Client, options.ResourceManagerAuthorizer)
+	syncCloudEndpointsClient, err := cloudendpointresource.NewCloudEndpointResourceClientWithBaseURI(o.Environment.ResourceManager)
+	if err != nil {
+		return nil, fmt.Errorf("building CloudEndpoint client: %+v", err)
+	}
+	o.Configure(syncCloudEndpointsClient.Client, o.Authorizers.ResourceManager)
 
-	encryptionScopesClient := storage.NewEncryptionScopesClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&encryptionScopesClient.Client, options.ResourceManagerAuthorizer)
+	syncServiceClient, err := storagesyncservicesresource.NewStorageSyncServicesResourceClientWithBaseURI(o.Environment.ResourceManager)
+	if err != nil {
+		return nil, fmt.Errorf("building StorageSyncService client: %+v", err)
+	}
+	o.Configure(syncServiceClient.Client, o.Authorizers.ResourceManager)
 
-	fileServicesClient := storage.NewFileServicesClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&fileServicesClient.Client, options.ResourceManagerAuthorizer)
-
-	resourceManager := storage_v2022_05_01.NewClientWithBaseURI(options.ResourceManagerEndpoint,
-		func(c *autorest.Client) {
-			c.Authorizer = options.ResourceManagerAuthorizer
-		})
-
-	syncServiceClient := storagesync.NewServicesClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&syncServiceClient.Client, options.ResourceManagerAuthorizer)
-
-	syncGroupsClient := storagesync.NewSyncGroupsClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
-	options.ConfigureClient(&syncGroupsClient.Client, options.ResourceManagerAuthorizer)
+	syncGroupsClient, err := syncgroupresource.NewSyncGroupResourceClientWithBaseURI(o.Environment.ResourceManager)
+	if err != nil {
+		return nil, fmt.Errorf("building StorageSyncGroups client: %+v", err)
+	}
+	o.Configure(syncGroupsClient.Client, o.Authorizers.ResourceManager)
 
 	// TODO: switch Storage Containers to using the storage.BlobContainersClient
 	// (which should fix #2977) when the storage clients have been moved in here
 	client := Client{
-		AccountsClient:              &accountsClient,
-		LocalUsersClient:            &localUsersClient,
-		FileSystemsClient:           &fileSystemsClient,
-		ADLSGen2PathsClient:         &adlsGen2PathsClient,
-		ManagementPoliciesClient:    &managementPoliciesClient,
-		BlobServicesClient:          &blobServicesClient,
-		BlobInventoryPoliciesClient: &blobInventoryPoliciesClient,
-		CloudEndpointsClient:        &cloudEndpointsClient,
-		EncryptionScopesClient:      &encryptionScopesClient,
-		Environment:                 options.Environment,
-		FileServicesClient:          &fileServicesClient,
-		ResourceManager:             &resourceManager,
-		SubscriptionId:              options.SubscriptionId,
-		SyncServiceClient:           &syncServiceClient,
-		SyncGroupsClient:            &syncGroupsClient,
+		AccountsClient:           &accountsClient,
+		BlobServicesClient:       &blobServicesClient,
+		EncryptionScopesClient:   &encryptionScopesClient,
+		FileServicesClient:       &fileServicesClient,
+		ResourceManager:          resourceManager,
+		SyncCloudEndpointsClient: syncCloudEndpointsClient,
+		SyncServiceClient:        syncServiceClient,
+		SyncGroupsClient:         syncGroupsClient,
 
-		resourceManagerAuthorizer: options.ResourceManagerAuthorizer,
+		StorageDomainSuffix: *storageSuffix,
 	}
 
-	if options.StorageUseAzureAD {
-		client.storageAdAuth = &options.StorageAuthorizer
+	if o.StorageUseAzureAD {
+		client.authorizerForAad = o.Authorizers.Storage
 	}
 
-	return &client
-}
-
-func (client Client) AccountsDataPlaneClient(ctx context.Context, account accountDetails) (*accounts.Client, error) {
-	if client.storageAdAuth != nil {
-		accountsClient := accounts.NewWithEnvironment(client.Environment)
-		accountsClient.Client.Authorizer = *client.storageAdAuth
-		return &accountsClient, nil
-	}
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKey)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	accountsClient := accounts.NewWithEnvironment(client.Environment)
-	accountsClient.Client.Authorizer = storageAuth
-	return &accountsClient, nil
-}
-
-func (client Client) BlobsClient(ctx context.Context, account accountDetails) (*blobs.Client, error) {
-	if client.storageAdAuth != nil {
-		blobsClient := blobs.NewWithEnvironment(client.Environment)
-		blobsClient.Client.Authorizer = *client.storageAdAuth
-		return &blobsClient, nil
-	}
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKey)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	blobsClient := blobs.NewWithEnvironment(client.Environment)
-	blobsClient.Client.Authorizer = storageAuth
-	return &blobsClient, nil
-}
-
-func (client Client) ContainersClient(ctx context.Context, account accountDetails) (shim.StorageContainerWrapper, error) {
-	if client.storageAdAuth != nil {
-		containersClient := containers.NewWithEnvironment(client.Environment)
-		containersClient.Client.Authorizer = *client.storageAdAuth
-		shim := shim.NewDataPlaneStorageContainerWrapper(&containersClient)
-		return shim, nil
-	}
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKey)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	containersClient := containers.NewWithEnvironment(client.Environment)
-	containersClient.Client.Authorizer = storageAuth
-
-	shim := shim.NewDataPlaneStorageContainerWrapper(&containersClient)
-	return shim, nil
-}
-
-func (client Client) FileShareDirectoriesClient(ctx context.Context, account accountDetails) (*directories.Client, error) {
-	// NOTE: Files do not support AzureAD Authentication
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKeyLite)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	directoriesClient := directories.NewWithEnvironment(client.Environment)
-	directoriesClient.Client.Authorizer = storageAuth
-	return &directoriesClient, nil
-}
-
-func (client Client) FileShareFilesClient(ctx context.Context, account accountDetails) (*files.Client, error) {
-	// NOTE: Files do not support AzureAD Authentication
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKeyLite)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	filesClient := files.NewWithEnvironment(client.Environment)
-	filesClient.Client.Authorizer = storageAuth
-	return &filesClient, nil
-}
-
-func (client Client) FileSharesClient(ctx context.Context, account accountDetails) (shim.StorageShareWrapper, error) {
-	// NOTE: Files do not support AzureAD Authentication
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKeyLite)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	sharesClient := shares.NewWithEnvironment(client.Environment)
-	sharesClient.Client.Authorizer = storageAuth
-	shim := shim.NewDataPlaneStorageShareWrapper(&sharesClient)
-	return shim, nil
-}
-
-func (client Client) QueuesClient(ctx context.Context, account accountDetails) (shim.StorageQueuesWrapper, error) {
-	if client.storageAdAuth != nil {
-		queueClient := queues.NewWithEnvironment(client.Environment)
-		queueClient.Client.Authorizer = *client.storageAdAuth
-		return shim.NewDataPlaneStorageQueueWrapper(&queueClient), nil
-	}
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKeyLite)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	queuesClient := queues.NewWithEnvironment(client.Environment)
-	queuesClient.Client.Authorizer = storageAuth
-	return shim.NewDataPlaneStorageQueueWrapper(&queuesClient), nil
-}
-
-func (client Client) TableEntityClient(ctx context.Context, account accountDetails) (*entities.Client, error) {
-	// NOTE: Table Entity does not support AzureAD Authentication
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKeyLiteForTable)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	entitiesClient := entities.NewWithEnvironment(client.Environment)
-	entitiesClient.Client.Authorizer = storageAuth
-	return &entitiesClient, nil
-}
-
-func (client Client) TablesClient(ctx context.Context, account accountDetails) (shim.StorageTableWrapper, error) {
-	// NOTE: Tables do not support AzureAD Authentication
-
-	accountKey, err := account.AccountKey(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving Account Key: %s", err)
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(account.name, *accountKey, autorest.SharedKeyLiteForTable)
-	if err != nil {
-		return nil, fmt.Errorf("building Authorizer: %+v", err)
-	}
-
-	tablesClient := tables.NewWithEnvironment(client.Environment)
-	tablesClient.Client.Authorizer = storageAuth
-	shim := shim.NewDataPlaneStorageTableWrapper(&tablesClient)
-	return shim, nil
+	return &client, nil
 }

@@ -50,6 +50,7 @@ resource "azurerm_key_vault" "example" {
     key_permissions = [
       "Create",
       "Get",
+      "GetRotationPolicy",
     ]
 
     secret_permissions = [
@@ -62,8 +63,8 @@ resource "azurerm_key_vault" "example" {
   }
 
   access_policy {
-    tenant_id = azurerm_log_analytics_cluster.example.identity.0.tenant_id
-    object_id = azurerm_log_analytics_cluster.example.identity.0.principal_id
+    tenant_id = azurerm_log_analytics_cluster.example.identity[0].tenant_id
+    object_id = azurerm_log_analytics_cluster.example.identity[0].principal_id
 
     key_permissions = [
       "Get",

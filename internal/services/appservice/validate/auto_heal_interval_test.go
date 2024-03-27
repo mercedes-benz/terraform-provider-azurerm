@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package validate
 
 import "testing"
@@ -31,7 +34,7 @@ func TestAutoHealInterval(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Logf("[DEBUG] Testing Value %s", tc.Input)
-		_, errors := AutoHealInterval(tc.Input, "test")
+		_, errors := TimeInterval(tc.Input, "test")
 		valid := len(errors) == 0
 
 		if tc.Valid != valid {

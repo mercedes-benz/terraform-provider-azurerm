@@ -8,6 +8,7 @@ This readme covers example usages, but further information on [using this SDK ca
 ### Import Path
 
 ```go
+import "github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 import "github.com/hashicorp/go-azure-sdk/resource-manager/applicationinsights/2020-11-20/workbooktemplatesapis"
 ```
 
@@ -24,7 +25,7 @@ client.Client.Authorizer = authorizer
 
 ```go
 ctx := context.TODO()
-id := workbooktemplatesapis.NewWorkbookTemplateID("12345678-1234-9876-4563-123456789012", "example-resource-group", "resourceValue")
+id := workbooktemplatesapis.NewWorkbookTemplateID("12345678-1234-9876-4563-123456789012", "example-resource-group", "workbookTemplateValue")
 
 payload := workbooktemplatesapis.WorkbookTemplate{
 	// ...
@@ -45,7 +46,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := workbooktemplatesapis.NewWorkbookTemplateID("12345678-1234-9876-4563-123456789012", "example-resource-group", "resourceValue")
+id := workbooktemplatesapis.NewWorkbookTemplateID("12345678-1234-9876-4563-123456789012", "example-resource-group", "workbookTemplateValue")
 
 read, err := client.WorkbookTemplatesDelete(ctx, id)
 if err != nil {
@@ -61,7 +62,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := workbooktemplatesapis.NewWorkbookTemplateID("12345678-1234-9876-4563-123456789012", "example-resource-group", "resourceValue")
+id := workbooktemplatesapis.NewWorkbookTemplateID("12345678-1234-9876-4563-123456789012", "example-resource-group", "workbookTemplateValue")
 
 read, err := client.WorkbookTemplatesGet(ctx, id)
 if err != nil {
@@ -77,7 +78,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := workbooktemplatesapis.NewResourceGroupID("12345678-1234-9876-4563-123456789012", "example-resource-group")
+id := commonids.NewResourceGroupID("12345678-1234-9876-4563-123456789012", "example-resource-group")
 
 read, err := client.WorkbookTemplatesListByResourceGroup(ctx, id)
 if err != nil {
@@ -93,7 +94,7 @@ if model := read.Model; model != nil {
 
 ```go
 ctx := context.TODO()
-id := workbooktemplatesapis.NewWorkbookTemplateID("12345678-1234-9876-4563-123456789012", "example-resource-group", "resourceValue")
+id := workbooktemplatesapis.NewWorkbookTemplateID("12345678-1234-9876-4563-123456789012", "example-resource-group", "workbookTemplateValue")
 
 payload := workbooktemplatesapis.WorkbookTemplateUpdateParameters{
 	// ...

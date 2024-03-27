@@ -60,7 +60,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Virtual Desktop Workspace Application Group association.
 
@@ -69,7 +69,6 @@ The following attributes are exported:
 The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
 
 * `create` - (Defaults to 60 minutes) Used when creating the Virtual Desktop Workspace.
-* `update` - (Defaults to 60 minutes) Used when updating the Virtual Desktop Workspace.
 * `read` - (Defaults to 5 minutes) Used when retrieving the Virtual Desktop Workspace.
 * `delete` - (Defaults to 60 minutes) Used when deleting the Virtual Desktop Workspace.
 

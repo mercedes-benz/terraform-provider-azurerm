@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package recoveryservices_test
 
 import (
@@ -6,7 +9,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/hashicorp/go-azure-sdk/resource-manager/recoveryservices/2022-10-01/vaults"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/recoveryservices/2024-01-01/vaults"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
@@ -32,16 +35,32 @@ func TestAccRecoveryServicesVault_basic(t *testing.T) {
 	})
 }
 
-func TestAccRecoveryServicesVault_basicWithCrossRegionRestore(t *testing.T) {
+func TestAccRecoveryServicesVault_ToggleCrossRegionRestore(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_recovery_services_vault", "test")
 	r := RecoveryServicesVaultResource{}
 
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.basicWithCrossRegionRestore(data),
+			Config: r.basicWithCrossRegionRestore(data, false),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("cross_region_restore_enabled").HasValue("false"),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithCrossRegionRestore(data, true),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 				check.That(data.ResourceName).Key("cross_region_restore_enabled").HasValue("true"),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithCrossRegionRestore(data, false),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("cross_region_restore_enabled").HasValue("false"),
 			),
 		},
 		data.ImportStep(),
@@ -154,13 +173,50 @@ func TestAccRecoveryServicesVault_SystemAssignedIdentity(t *testing.T) {
 	})
 }
 
-func TestAccRecoveryServicesVault_UserAssignedIdentity(t *testing.T) {
+func TestAccRecoveryServicesVault_Identity(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_recovery_services_vault", "test")
 	r := RecoveryServicesVaultResource{}
 
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basicWithUserAssignedIdentity(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithSystemAssignedUserAssignedIdentity(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccRecoveryServicesVault_immutabilityLocked(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_recovery_services_vault", "test")
+	r := RecoveryServicesVaultResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			// To test creation with `Locked`, it is irreversible.
+			Config: r.basicWithImmutability(data, "Locked"),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithImmutability(data, "Disabled"),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithImmutability(data, "Locked"),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -175,7 +231,14 @@ func TestAccRecoveryServicesVault_immutability(t *testing.T) {
 
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.basicWithImmutability(data, true),
+			Config: r.basic(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithImmutability(data, "Unlocked"),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -189,7 +252,21 @@ func TestAccRecoveryServicesVault_immutability(t *testing.T) {
 		},
 		data.ImportStep(),
 		{
-			Config: r.basicWithImmutability(data, false),
+			Config: r.basicWithImmutability(data, "Disabled"),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithImmutability(data, "Unlocked"),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithImmutability(data, "Locked"),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -263,6 +340,21 @@ func TestAccRecoveryServicesVault_crossRegionRestore(t *testing.T) {
 		data.ImportStep(),
 		{
 			Config: r.crossRegionRestoreEnabled(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccRecoveryServicesVault_CrossRegionRestoreWithEncryption(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_recovery_services_vault", "test")
+	r := RecoveryServicesVaultResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.crossRegionRestoreEnabledWithEncryption(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -472,6 +564,37 @@ func TestAccRecoveryServicesVault_TogglePublicNetworkAccessEnabled(t *testing.T)
 	})
 }
 
+func TestAccRecoveryServicesVault_basicWithClassicVmwareReplicateEnabled(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_recovery_services_vault", "test")
+	r := RecoveryServicesVaultResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.basicWithClassicVmwareReplicateEnabled(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("classic_vmware_replication_enabled").HasValue("true"),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccRecoveryServicesVault_basicWithMonitorDisabled(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_recovery_services_vault", "test")
+	r := RecoveryServicesVaultResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.basicWithMonitor(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
 func (RecoveryServicesVaultResource) basic(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 provider "azurerm" {
@@ -517,7 +640,7 @@ resource "azurerm_recovery_services_vault" "test" {
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, enabled)
 }
 
-func (RecoveryServicesVaultResource) basicWithCrossRegionRestore(data acceptance.TestData) string {
+func (RecoveryServicesVaultResource) basicWithCrossRegionRestore(data acceptance.TestData, enable bool) string {
 	return fmt.Sprintf(`
 provider "azurerm" {
   features {}
@@ -534,11 +657,11 @@ resource "azurerm_recovery_services_vault" "test" {
   resource_group_name = azurerm_resource_group.test.name
   sku                 = "Standard"
 
-  cross_region_restore_enabled = true
+  cross_region_restore_enabled = %t
 
   soft_delete_enabled = false
 }
-`, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger, enable)
 }
 
 func (RecoveryServicesVaultResource) basicWithCrossRegionRestoreAndWrongStorageType(data acceptance.TestData) string {
@@ -629,12 +752,42 @@ resource "azurerm_recovery_services_vault" "test" {
 `, data.RandomInteger, data.Locations.Primary)
 }
 
-func (RecoveryServicesVaultResource) basicWithImmutability(data acceptance.TestData, enabled bool) string {
-	immutability := `Disabled`
-	if enabled {
-		immutability = `Unlocked`
-	}
+func (RecoveryServicesVaultResource) basicWithSystemAssignedUserAssignedIdentity(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
 
+resource "azurerm_user_assigned_identity" "test" {
+  name                = "acctest-uai-%[1]d"
+  resource_group_name = azurerm_resource_group.test.name
+  location            = azurerm_resource_group.test.location
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-recovery-%[1]d"
+  location = "%[2]s"
+}
+
+resource "azurerm_recovery_services_vault" "test" {
+  name                = "acctest-Vault-%[1]d"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  sku                 = "Standard"
+
+  identity {
+    type = "SystemAssigned, UserAssigned"
+    identity_ids = [
+      azurerm_user_assigned_identity.test.id,
+    ]
+  }
+
+  soft_delete_enabled = false
+}
+`, data.RandomInteger, data.Locations.Primary)
+}
+
+func (RecoveryServicesVaultResource) basicWithImmutability(data acceptance.TestData, immutability string) string {
 	return fmt.Sprintf(`
 provider "azurerm" {
   features {}
@@ -655,6 +808,33 @@ resource "azurerm_recovery_services_vault" "test" {
   soft_delete_enabled = false
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, immutability)
+}
+
+func (RecoveryServicesVaultResource) basicWithMonitor(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-recovery-%d"
+  location = "%s"
+}
+
+resource "azurerm_recovery_services_vault" "test" {
+  name                = "acctest-Vault-%d"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  sku                 = "Standard"
+
+  monitoring {
+    alerts_for_all_job_failures_enabled            = false
+    alerts_for_critical_operation_failures_enabled = false
+  }
+
+  soft_delete_enabled = false
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
 }
 
 func (RecoveryServicesVaultResource) complete(data acceptance.TestData) string {
@@ -759,6 +939,7 @@ resource "azurerm_key_vault" "test" {
       "UnwrapKey",
       "WrapKey",
       "Verify",
+      "GetRotationPolicy"
     ]
     secret_permissions = [
       "Set",
@@ -856,6 +1037,7 @@ resource "azurerm_key_vault" "test" {
       "UnwrapKey",
       "WrapKey",
       "Verify",
+      "GetRotationPolicy"
     ]
     secret_permissions = [
       "Set",
@@ -871,6 +1053,7 @@ resource "azurerm_key_vault" "test" {
       "List",
       "WrapKey",
       "UnwrapKey",
+      "GetRotationPolicy"
     ]
   }
 }
@@ -981,6 +1164,7 @@ resource "azurerm_key_vault" "test" {
       "UnwrapKey",
       "WrapKey",
       "Verify",
+      "GetRotationPolicy"
     ]
     secret_permissions = [
       "Set",
@@ -1086,6 +1270,94 @@ resource "azurerm_recovery_services_vault" "test" {
   cross_region_restore_enabled = true
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
+}
+
+func (RecoveryServicesVaultResource) crossRegionRestoreEnabledWithEncryption(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy       = true
+      purge_soft_deleted_keys_on_destroy = false
+    }
+  }
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-recovery-%[1]d"
+  location = "%[2]s"
+}
+
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_key_vault" "test" {
+  name                        = "acctest-key-vault-%[3]s"
+  location                    = azurerm_resource_group.test.location
+  resource_group_name         = azurerm_resource_group.test.name
+  enabled_for_disk_encryption = true
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  soft_delete_retention_days  = 7
+  purge_protection_enabled    = false
+
+  sku_name = "standard"
+
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = data.azurerm_client_config.current.object_id
+
+    key_permissions = [
+      "Create",
+      "Decrypt",
+      "Encrypt",
+      "Delete",
+      "Get",
+      "List",
+      "Purge",
+      "UnwrapKey",
+      "WrapKey",
+      "Verify",
+      "GetRotationPolicy"
+    ]
+    secret_permissions = [
+      "Set",
+    ]
+  }
+}
+
+resource "azurerm_key_vault_key" "test" {
+  name         = "acctest-key-vault-key"
+  key_vault_id = azurerm_key_vault.test.id
+  key_type     = "RSA"
+  key_size     = 2048
+
+  key_opts = [
+    "decrypt",
+    "encrypt",
+    "sign",
+    "unwrapKey",
+    "verify",
+    "wrapKey",
+  ]
+}
+
+resource "azurerm_recovery_services_vault" "test" {
+  name                = "acctest-Vault-%[1]d"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  sku                 = "Standard"
+
+  cross_region_restore_enabled = true
+
+  encryption {
+    key_id                            = azurerm_key_vault_key.test.id
+    infrastructure_encryption_enabled = false
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomString)
 }
 
 func (RecoveryServicesVaultResource) storageModeTypeDefault(data acceptance.TestData) string {
@@ -1214,6 +1486,7 @@ resource "azurerm_key_vault" "test" {
       "UnwrapKey",
       "WrapKey",
       "Verify",
+      "GetRotationPolicy"
     ]
     secret_permissions = [
       "Set",
@@ -1253,4 +1526,26 @@ resource "azurerm_recovery_services_vault" "test" {
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomString, sku)
+}
+
+func (RecoveryServicesVaultResource) basicWithClassicVmwareReplicateEnabled(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-recovery-%d"
+  location = "%s"
+}
+
+resource "azurerm_recovery_services_vault" "test" {
+  name                               = "acctest-Vault-%d"
+  location                           = azurerm_resource_group.test.location
+  resource_group_name                = azurerm_resource_group.test.name
+  sku                                = "Standard"
+  classic_vmware_replication_enabled = true
+  soft_delete_enabled                = false
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
 }

@@ -12,7 +12,7 @@ Manages a Virtual Machine.
 
 ## Disclaimers
 
--> **Note:** The `azurerm_virtual_machine` resource has been superseded by the [`azurerm_linux_virtual_machine`](linux_virtual_machine.html) and [`azurerm_windows_virtual_machine`](windows_virtual_machine.html) resources. The existing `azurerm_virtual_machine` resource will continue to be available throughout the 2.x releases however is in a feature-frozen state to maintain compatibility - new functionality will instead be added to the `azurerm_linux_virtual_machine` and `azurerm_windows_virtual_machine` resources.
+-> **Note:** The `azurerm_virtual_machine` resource has been superseded by the [`azurerm_linux_virtual_machine`](linux_virtual_machine.html) and [`azurerm_windows_virtual_machine`](windows_virtual_machine.html) resources. The existing `azurerm_virtual_machine` resource will continue to be available throughout the 3.x releases however is in a feature-frozen state to maintain compatibility - new functionality will instead be added to the `azurerm_linux_virtual_machine` and `azurerm_windows_virtual_machine` resources.
 
 ~> **Note:** Data Disks can be attached either directly on the `azurerm_virtual_machine` resource, or using the `azurerm_virtual_machine_data_disk_attachment` resource - but the two cannot be used together. If both are used against the same Virtual Machine, spurious changes will occur.
 
@@ -71,8 +71,8 @@ resource "azurerm_virtual_machine" "main" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "16.04-LTS"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
     version   = "latest"
   }
   storage_os_disk {
@@ -248,7 +248,7 @@ A `os_profile_windows_config` block supports the following:
 
 -> **NOTE:** This is different from the Default value used for this field within Azure.
 
-* `enable_automatic_upgrades` - (Optional) Are automatic updates enabled on this Virtual Machine? Defaults to `false.`
+* `enable_automatic_upgrades` - (Optional) Are automatic updates enabled on this Virtual Machine? Defaults to `false`.
 
 * `timezone` - (Optional) Specifies the time zone of the virtual machine, [the possible values are defined here](https://jackstromberg.com/2017/01/list-of-time-zones-consumed-by-azure/). Changing this forces a new resource to be created.
 
@@ -392,7 +392,7 @@ A `winrm` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Virtual Machine.
 
@@ -404,7 +404,7 @@ An `identity` block exports the following:
 
 * `principal_id` - The Principal ID associated with this Managed Service Identity.
 
--> You can access the Principal ID via `${azurerm_virtual_machine.example.identity.0.principal_id}`
+-> You can access the Principal ID via `${azurerm_virtual_machine.example.identity[0].principal_id}`
 
 ## Timeouts
 

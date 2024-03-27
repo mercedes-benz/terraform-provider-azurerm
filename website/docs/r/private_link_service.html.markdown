@@ -62,7 +62,7 @@ resource "azurerm_private_link_service" "example" {
 
   auto_approval_subscription_ids              = ["00000000-0000-0000-0000-000000000000"]
   visibility_subscription_ids                 = ["00000000-0000-0000-0000-000000000000"]
-  load_balancer_frontend_ip_configuration_ids = [azurerm_lb.example.frontend_ip_configuration.0.id]
+  load_balancer_frontend_ip_configuration_ids = [azurerm_lb.example.frontend_ip_configuration[0].id]
 
   nat_ip_configuration {
     name                       = "primary"
@@ -128,7 +128,7 @@ The `nat_ip_configuration` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `alias` - A globally unique DNS Name for your Private Link Service. You can use this alias to request a connection to your Private Link Service.
 

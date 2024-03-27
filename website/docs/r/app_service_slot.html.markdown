@@ -235,7 +235,7 @@ A `site_config` block supports the following:
 
 * `http2_enabled` - (Optional) Is HTTP2 Enabled on this App Service? Defaults to `false`.
 
-* `ip_restriction` - (Optional) A [List of objects](/docs/configuration/attr-as-blocks.html) representing IP restrictions as defined below.
+* `ip_restriction` - (Optional) A list of `ip_restriction` objects representing IP restrictions as defined below.
 
 -> **NOTE** User has to explicitly set `ip_restriction` to empty slice (`[]`) to remove it.
 
@@ -243,7 +243,7 @@ A `site_config` block supports the following:
 
 -> **NOTE** Any `scm_ip_restriction` blocks configured are ignored by the service when `scm_use_main_ip_restriction` is set to `true`. Any scm restrictions will become active if this is subsequently set to `false` or removed.  
 
-* `scm_ip_restriction` - (Optional) A [List of objects](/docs/configuration/attr-as-blocks.html) representing IP restrictions as defined below.
+* `scm_ip_restriction` - (Optional) A list of `scm_ip_restriction` objects representing IP restrictions as defined below.
 
 -> **NOTE** User has to explicitly set `scm_ip_restriction` to empty slice (`[]`) to remove it.
 
@@ -353,6 +353,14 @@ A `facebook` block supports the following:
 
 ---
 
+A `twitter` block supports the following:
+
+* `consumer_key` - (Required) The consumer key of the Twitter app used for login
+
+* `consumer_secret` - (Required) The consumer secret of the Twitter app used for login.
+
+---
+
 A `google` block supports the following:
 
 * `client_id` - (Required) The OpenID Connect Client ID for the Google web application.
@@ -379,7 +387,7 @@ A `ip_restriction` block supports the following:
 
 * `action` - (Optional) Does this restriction `Allow` or `Deny` access for this IP range. Defaults to `Allow`. 
 
-* `headers` - (Optional) The headers for this specific `ip_restriction` as defined below. The HTTP header filters are evaluated after the rule itself and both conditions must be true for the rule to apply.
+* `headers` - (Optional) The `headers` block for this specific `ip_restriction` as defined below. The HTTP header filters are evaluated after the rule itself and both conditions must be true for the rule to apply.
 
 ---
 
@@ -392,6 +400,26 @@ A `headers` block supports the following:
 * `x_forwarded_for` - (Optional) A list of allowed 'X-Forwarded-For' IPs in CIDR notation with a maximum of 8
 
 * `x_forwarded_host` - (Optional) A list of allowed 'X-Forwarded-Host' domains with a maximum of 8.
+
+---
+
+A `scm_ip_restriction` block supports the following:
+
+* `ip_address` - (Optional) The IP Address used for this IP Restriction in CIDR notation.
+
+* `service_tag` - (Optional) The Service Tag used for this IP Restriction.
+
+* `virtual_network_subnet_id` - (Optional) The Virtual Network Subnet ID used for this IP Restriction.
+
+-> **NOTE:** One of either `ip_address`, `service_tag` or `virtual_network_subnet_id` must be specified
+
+* `name` - (Optional) The name for this IP Restriction.
+
+* `priority` - (Optional) The priority for this IP Restriction. Restrictions are enforced in priority order. By default, priority is set to 65000 if not specified.
+
+* `action` - (Optional) Allow or Deny access for this IP range. Defaults to `Allow`.
+
+* `headers` - (Optional) The `headers` block for this specific `scm_ip_restriction` as defined below.
 
 ---
 
@@ -429,7 +457,7 @@ A `logs` block supports the following:
 
 An `application_logs` block supports the following:
 
-* `file_system_level` - (Optional) The file system log level. Possible values are `Off`, `Error`, `Warning`, `Information`, and `Verbose`.
+* `file_system_level` - (Optional) The file system log level. Possible values are `Off`, `Error`, `Warning`, `Information`, and `Verbose`. Defaults to `Off`.
 
 * `azure_blob_storage` - (Optional) An `azure_blob_storage` block as defined below.
 
@@ -459,17 +487,9 @@ A `file_system` block supports the following:
 
 * `retention_in_mb` - (Required) The maximum size in megabytes that HTTP log files can use before being removed.
 
----
-
-A `ip_restriction` block (attribute as block) support:
-
-* `ip_address` - (Optional) The IP Address used for this IP Restriction.
-
-* `subnet_mask` - (Optional) The Subnet mask used for this IP Restriction. Defaults to `255.255.255.255`.
-
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the App Service Slot.
 
@@ -487,7 +507,7 @@ A `identity` block exports the following:
 
 * `tenant_id` - The Tenant ID for the Service Principal associated with the Managed Service Identity of this App Service slot.
 
--> You can access the Principal ID via `azurerm_app_service_slot.example.identity.0.principal_id` and the Tenant ID via `azurerm_app_service_slot.example.identity.0.tenant_id`
+-> You can access the Principal ID via `azurerm_app_service_slot.example.identity[0].principal_id` and the Tenant ID via `azurerm_app_service_slot.example.identity[0].tenant_id`
 
 ---
 

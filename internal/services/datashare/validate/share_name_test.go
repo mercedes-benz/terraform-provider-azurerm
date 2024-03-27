@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package validate
 
 import "testing"
@@ -19,12 +22,12 @@ func TestShareName(t *testing.T) {
 			valid: false,
 		},
 		{
-			name:  "invalid character2",
+			name:  "valid",
 			input: "adgeFG-98",
-			valid: false,
+			valid: true,
 		},
 		{
-			name:  "valid",
+			name:  "valid 2",
 			input: "dfakF88u7_",
 			valid: true,
 		},

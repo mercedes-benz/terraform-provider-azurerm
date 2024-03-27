@@ -1,17 +1,21 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package appconfiguration_test
 
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/appconfiguration"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/appconfiguration/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
+	"github.com/tombuildsstuff/kermit/sdk/appconfiguration/1.0/appconfiguration"
 )
 
 type AppConfigurationKeyResource struct{}
@@ -37,6 +41,20 @@ func TestAccAppConfigurationKey_basicNoLabel(t *testing.T) {
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basicNoLabel(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccAppConfigurationKey_complicatedKeyLabel(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_app_configuration_key", "test")
+	r := AppConfigurationKeyResource{}
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.complicatedKeyLabel(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -81,16 +99,77 @@ func TestAccAppConfigurationKey_KVToVault(t *testing.T) {
 			Config: r.basic(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("type").HasValue(appconfiguration.KeyTypeKV),
+				check.That(data.ResourceName).Key("type").HasValue("kv"),
 			),
 		},
 		{
 			Config: r.vaultKeyBasic(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("type").HasValue(appconfiguration.KeyTypeVault),
+				check.That(data.ResourceName).Key("type").HasValue("vault"),
 			),
 		},
+		{
+			Config: r.basic(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("type").HasValue("kv"),
+			),
+		},
+	})
+}
+
+func TestAccAppConfigurationKey_errorTypeVaultWithValue(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_app_configuration_key", "test")
+	r := AppConfigurationKeyResource{}
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config:      r.errorTypeVaultWithValue(data),
+			ExpectError: regexp.MustCompile("'value' should only be set when key type is set to \"kv\""),
+		},
+	})
+}
+
+func TestAccAppConfigurationKey_errorTypeWithVaultKeyReference(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_app_configuration_key", "test")
+	r := AppConfigurationKeyResource{}
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config:      r.errorTypeWithVaultKeyReference(data),
+			ExpectError: regexp.MustCompile("'vault_key_reference' should only be set when key type is set to \"vault\""),
+		},
+	})
+}
+
+func TestAccAppConfigurationKey_errorTypeWithContentType(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_app_configuration_key", "test")
+	r := AppConfigurationKeyResource{}
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config:      r.errorTypeWithContentType(data),
+			ExpectError: regexp.MustCompile("key type \"vault\" cannot have content type other than"),
+		},
+	})
+}
+
+func TestAccAppConfigurationKey_basicNoValue(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_app_configuration_key", "test")
+	r := AppConfigurationKeyResource{}
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.basic(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicNoValue(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
 	})
 }
 
@@ -144,26 +223,22 @@ func TestAccAppConfigurationKey_lockUpdate(t *testing.T) {
 }
 
 func (t AppConfigurationKeyResource) Exists(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	resourceID, err := parse.KeyId(state.ID)
+	nestedItemId, err := parse.ParseNestedItemID(state.ID)
 	if err != nil {
 		return nil, fmt.Errorf("while parsing resource ID: %+v", err)
 	}
 
-	client, err := clients.AppConfiguration.DataPlaneClient(ctx, resourceID.ConfigurationStoreId)
-	if client == nil {
-		// if the AppConfiguration is gone all the data will be too
-		return utils.Bool(false), nil
-	}
+	client, err := clients.AppConfiguration.DataPlaneClientWithEndpoint(nestedItemId.ConfigurationStoreEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := client.GetKeyValues(ctx, resourceID.Key, resourceID.Label, "", "", []string{})
+	res, err := client.GetKeyValue(ctx, nestedItemId.Key, nestedItemId.Label, "", "", "", []appconfiguration.KeyValueFields{})
 	if err != nil {
-		return nil, fmt.Errorf("while checking for key's %q existence: %+v", resourceID.Key, err)
+		return nil, fmt.Errorf("while checking for key's %q existence: %+v", nestedItemId.Key, err)
 	}
 
-	return utils.Bool(res.Response().StatusCode == 200), nil
+	return utils.Bool(res.Response.StatusCode == 200), nil
 }
 
 func (t AppConfigurationKeyResource) base(data acceptance.TestData) string {
@@ -212,6 +287,20 @@ resource "azurerm_app_configuration_key" "test" {
 `, t.base(data), data.RandomInteger, data.RandomInteger)
 }
 
+func (t AppConfigurationKeyResource) complicatedKeyLabel(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_app_configuration_key" "test" {
+  configuration_store_id = azurerm_app_configuration.test.id
+  key                    = "acctest-ackey-%d/Label/AppConfigurationKey/Label/"
+  content_type           = "test"
+  label                  = "/AppConfigurationKey/acctest-ackeylabel-%d"
+  value                  = "a test"
+}
+`, t.base(data), data.RandomInteger, data.RandomInteger)
+}
+
 func (t AppConfigurationKeyResource) slash(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 %s
@@ -224,6 +313,19 @@ resource "azurerm_app_configuration_key" "test" {
   value                  = "a test"
 }
 `, t.base(data), data.RandomInteger, data.RandomInteger)
+}
+
+func (t AppConfigurationKeyResource) basicNoValue(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_app_configuration_key" "test" {
+  configuration_store_id = azurerm_app_configuration.test.id
+  key                    = "acctest-ackey-%d"
+  content_type           = "test"
+  value                  = ""
+}
+`, t.base(data), data.RandomInteger)
 }
 
 func (t AppConfigurationKeyResource) basicNoLabel(data acceptance.TestData) string {
@@ -326,4 +428,83 @@ resource "azurerm_app_configuration_key" "test" {
   vault_key_reference    = azurerm_key_vault_secret.example.id
 }
 `, t.base(data), data.RandomInteger, data.RandomInteger, data.RandomInteger, data.RandomInteger)
+}
+
+func (t AppConfigurationKeyResource) errorTypeVaultWithValue(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_app_configuration_key" "test" {
+  configuration_store_id = azurerm_app_configuration.test.id
+  key                    = "acctest-ackey-%d"
+  type                   = "vault"
+  label                  = "acctest-ackeylabel-%d"
+  value                  = "a test"
+}
+`, t.base(data), data.RandomInteger, data.RandomInteger)
+}
+
+func (t AppConfigurationKeyResource) errorTypeWithContentType(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_key_vault" "example" {
+  name                       = "a-v2-%d"
+  location                   = azurerm_resource_group.test.location
+  resource_group_name        = azurerm_resource_group.test.name
+  tenant_id                  = data.azurerm_client_config.test.tenant_id
+  sku_name                   = "premium"
+  soft_delete_retention_days = 7
+
+  access_policy {
+    tenant_id = data.azurerm_client_config.test.tenant_id
+    object_id = data.azurerm_client_config.test.object_id
+
+    key_permissions = [
+      "Create",
+      "Get",
+    ]
+
+    secret_permissions = [
+      "Set",
+      "Get",
+      "Delete",
+      "Purge",
+      "Recover"
+    ]
+  }
+}
+
+resource "azurerm_key_vault_secret" "example" {
+  name         = "acctest-secret-%d"
+  value        = "szechuan"
+  key_vault_id = azurerm_key_vault.example.id
+}
+
+resource "azurerm_app_configuration_key" "test" {
+  configuration_store_id = azurerm_app_configuration.test.id
+  key                    = "acctest-ackey-%d"
+  type                   = "vault"
+  label                  = "acctest-ackeylabel-%d"
+  content_type           = "test"
+  vault_key_reference    = azurerm_key_vault_secret.example.id
+}
+  `, t.base(data), data.RandomInteger, data.RandomInteger, data.RandomInteger, data.RandomInteger)
+}
+
+func (t AppConfigurationKeyResource) errorTypeWithVaultKeyReference(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_app_configuration_key" "test" {
+  configuration_store_id = azurerm_app_configuration.test.id
+  key                    = "acctest-ackey-%d"
+  type                   = "kv"
+  label                  = "acctest-ackeylabel-%d"
+  content_type           = "test"
+
+  # use a fake vault key reference to trigger the error, so we can skip creating a vault
+  vault_key_reference = "https://example-keyvault.vault.azure.net/keys/example/fdf067c93bbb4b22bff4d8b7a9a56217"
+}
+  `, t.base(data), data.RandomInteger, data.RandomInteger)
 }

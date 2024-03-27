@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package synapse_test
 
 import (
@@ -122,6 +125,14 @@ func TestAccSynapseSparkPool_sparkVersion(t *testing.T) {
 		data.ImportStep("spark_events_folder", "spark_log_folder"),
 		{
 			Config: r.sparkVersion(data, "3.3"),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		// not returned by service
+		data.ImportStep("spark_events_folder", "spark_log_folder"),
+		{
+			Config: r.sparkVersion(data, "3.4"),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),

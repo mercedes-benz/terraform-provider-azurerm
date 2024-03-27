@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package batch_test
 
 import (
@@ -5,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/go-azure-sdk/resource-manager/batch/2023-05-01/batchaccount"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
@@ -95,7 +99,7 @@ func (r BatchJobResource) Exists(ctx context.Context, clients *clients.Client, s
 		return nil, err
 	}
 
-	client, err := clients.Batch.JobClient(ctx, parse.NewAccountID(id.SubscriptionId, id.ResourceGroup, id.BatchAccountName))
+	client, err := clients.Batch.JobClient(ctx, batchaccount.NewBatchAccountID(id.SubscriptionId, id.ResourceGroup, id.BatchAccountName))
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +178,7 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "test" {
-  name     = "testaccRG-batchjob-%[1]d"
+  name     = "acctestRG-batchjob-%[1]d"
   location = "west europe"
 }
 
@@ -188,7 +192,7 @@ resource "azurerm_batch_pool" "test" {
   name                = "testaccpool-%[1]d"
   resource_group_name = azurerm_resource_group.test.name
   account_name        = azurerm_batch_account.test.name
-  node_agent_sku_id   = "batch.node.ubuntu 18.04"
+  node_agent_sku_id   = "batch.node.ubuntu 22.04"
   vm_size             = "Standard_A1"
 
   fixed_scale {
@@ -197,8 +201,8 @@ resource "azurerm_batch_pool" "test" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-lts"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
     version   = "latest"
   }
 }

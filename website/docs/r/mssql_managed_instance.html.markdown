@@ -225,7 +225,7 @@ The following arguments are supported:
 
 * `subnet_id` - (Required) The subnet resource id that the SQL Managed Instance will be associated with. Changing this forces a new resource to be created.
 
-* `vcores` - (Required) Number of cores that should be assigned to the SQL Managed Instance. Values can be `8`, `16`, or `24` for Gen4 SKUs, or `4`, `8`, `16`, `24`, `32`, `40`, `64`, or `80` for Gen5 SKUs.
+* `vcores` - (Required) Number of cores that should be assigned to the SQL Managed Instance. Values can be `8`, `16`, or `24` for Gen4 SKUs, or `4`, `6`, `8`, `10`, `12`, `16`, `20`, `24`, `32`, `40`, `48`, `56`, `64`, `80`, `96` or `128` for Gen5 SKUs.
 
 * `collation` - (Optional) Specifies how the SQL Managed Instance will be collated. Default value is `SQL_Latin1_General_CP1_CI_AS`. Changing this forces a new resource to be created.
 
@@ -233,7 +233,7 @@ The following arguments are supported:
 
 * `identity` - (Optional) An `identity` block as defined below.
 
-* `maintenance_configuration_name` - (Optional) The name of the Public Maintenance Configuration window to apply to the SQL Managed Instance. Valid values include `SQL_Default`, `SQL_EastUS_MI_1`, `SQL_EastUS2_MI_1`, `SQL_WestUS2_MI_1`, `SQL_SoutheastAsia_MI_1`, `SQL_AustraliaEast_MI_1`, `SQL_NorthEurope_MI_1`, `SQL_SouthCentralUS_MI_1`, `SQL_UKSouth_MI_1`, `SQL_WestEurope_MI_1`, `SQL_EastUS_MI_2`, `SQL_EastUS2_MI_2`, `SQL_WestUS2_MI_2`, `SQL_SoutheastAsia_MI_2`, `SQL_NorthEurope_MI_2`, `SQL_SouthCentralUS_MI_2`, `SQL_UKSouth_MI_2`, `SQL_WestEurope_MI_2`, `SQL_AustraliaSoutheast_MI_1`, `SQL_BrazilSouth_MI_1`, `SQL_CanadaCentral_MI_1`, `SQL_CanadaEast_MI_1`, `SQL_CentralUS_MI_1`, `SQL_EastAsia_MI_1`, `SQL_FranceCentral_MI_1`, `SQL_GermanyWestCentral_MI_1`, `SQL_CentralIndia_MI_1`, `SQL_JapanEast_MI_1`, `SQL_JapanWest_MI_1`, `SQL_NorthCentralUS_MI_1`, `SQL_UKWest_MI_1`, `SQL_WestUS_MI_1`, `SQL_AustraliaSoutheast_MI_2`, `SQL_BrazilSouth_MI_2`, `SQL_CanadaCentral_MI_2`, `SQL_CanadaEast_MI_2`, `SQL_CentralUS_MI_2`, `SQL_EastAsia_MI_2`, `SQL_FranceCentral_MI_2`, `SQL_GermanyWestCentral_MI_2`, `SQL_CentralIndia_MI_2`, `SQL_JapanEast_MI_2`, `SQL_JapanWest_MI_2`, `SQL_NorthCentralUS_MI_2`, `SQL_UKWest_MI_2`, `SQL_WestUS_MI_2`, `SQL_KoreaCentral_MI_1`, `SQL_KoreaCentral_MI_2`, `SQL_WestCentralUS_MI_1`, `SQL_WestCentralUS_MI_2`, `SQL_UAENorth_MI_1`, `SQL_SwitzerlandWest_MI_1`, `SQL_SwitzerlandNorth_MI_1`, `SQL_UAENorth_MI_2`, `SQL_SwitzerlandWest_MI_2`, `SQL_SwitzerlandNorth_MI_2`, `SQL_FranceSouth_MI_1`, `SQL_FranceSouth_MI_2`, `SQL_SouthAfricaNorth_MI_1`, `SQL_KoreaSouth_MI_1`, `SQL_UAECentral_MI_1`, `SQL_SouthAfricaNorth_MI_2`, `SQL_KoreaSouth_MI_2`, `SQL_UAECentral_MI_2`, `SQL_SouthIndia_MI_1`, `SQL_SouthIndia_MI_2`, `SQL_AustraliaCentral_MI_1`, `SQL_AustraliaCentral2_MI_1`, `SQL_AustraliaCentral_MI_2`, `SQL_AustraliaCentral2_MI_2`, `SQL_WestIndia_MI_1`, `SQL_WestIndia_MI_2`, `SQL_SouthAfricaWest_MI_1`, `SQL_SouthAfricaWest_MI_2`, `SQL_GermanyNorth_MI_1`, `SQL_GermanyNorth_MI_2`, `SQL_NorwayEast_MI_1`, `SQL_BrazilSoutheast_MI_1`, `SQL_NorwayWest_MI_1`, `SQL_WestUS3_MI_1`, `SQL_NorwayEast_MI_2`, `SQL_BrazilSoutheast_MI_2`, `SQL_NorwayWest_MI_2`, `SQL_WestUS3_MI_2`. Defaults to `SQL_Default`.
+* `maintenance_configuration_name` - (Optional) The name of the Public Maintenance Configuration window to apply to the SQL Managed Instance. Valid values include `SQL_Default` or an Azure Location in the format `SQL_{Location}_MI_{Size}`(for example `SQL_EastUS_MI_1`). Defaults to `SQL_Default`.
 
 * `minimum_tls_version` - (Optional) The Minimum TLS Version. Default value is `1.2` Valid values include `1.0`, `1.1`, `1.2`.
 
@@ -241,7 +241,9 @@ The following arguments are supported:
 
 * `public_data_endpoint_enabled` - (Optional) Is the public data endpoint enabled? Default value is `false`.
 
-* `storage_account_type` - (Optional) Specifies the storage account type used to store backups for this database. Changing this forces a new resource to be created. Possible values are `GRS`, `LRS` and `ZRS`. The default value is `GRS`.
+* `storage_account_type` - (Optional) Specifies the storage account type used to store backups for this database. Changing this forces a new resource to be created. Possible values are `GRS`, `LRS` and `ZRS`. Defaults to `GRS`.
+
+* `zone_redundant_enabled` - (Optional) Specifies whether or not the SQL Managed Instance is zone redundant. Defaults to `false`.
 
 * `tags` - (Optional) A mapping of tags to assign to the resource.
 
@@ -251,17 +253,19 @@ The following arguments are supported:
 
 An `identity` block supports the following:
 
- * `type` - (Required) Specifies the type of Managed Service Identity that should be configured on this SQL Managed Instance. Possible values are `SystemAssigned`, `UserAssigned`.
+* `type` - (Required) Specifies the type of Managed Service Identity that should be configured on this SQL Managed Instance. Possible values are `SystemAssigned`, `UserAssigned`.
 
- * `identity_ids` - (Optional) Specifies a list of User Assigned Managed Identity IDs to be assigned to this SQL Managed Instance. Required when `type` is set to `UserAssigned`.
+* `identity_ids` - (Optional) Specifies a list of User Assigned Managed Identity IDs to be assigned to this SQL Managed Instance. Required when `type` is set to `UserAssigned`.
 
-~> The assigned `principal_id` and `tenant_id` can be retrieved after the identity `type` has been set to `SystemAssigned` and SQL Managed Instance has been created. 
+~> The assigned `principal_id` and `tenant_id` can be retrieved after the identity `type` has been set to `SystemAssigned` and SQL Managed Instance has been created.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The SQL Managed Instance ID.
+
+* `dns_zone` - The Dns Zone where the SQL Managed Instance is located.
 
 * `fqdn` - The fully qualified domain name of the Azure Managed SQL Instance
 
@@ -273,7 +277,7 @@ An `identity` block exports the following:
 
 * `tenant_id` - The Tenant ID for the Service Principal associated with the Identity of this SQL Managed Instance.
 
--> You can access the Principal ID via `azurerm_mssql_managed_instance.example.identity.0.principal_id` and the Tenant ID via `azurerm_mssql_managed_instance.example.identity.0.tenant_id`
+-> You can access the Principal ID via `azurerm_mssql_managed_instance.example.identity[0].principal_id` and the Tenant ID via `azurerm_mssql_managed_instance.example.identity[0].tenant_id`
 
 ## Timeouts
 

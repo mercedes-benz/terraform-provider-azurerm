@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package storage
 
 import (
@@ -8,10 +11,10 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2021-09-01/storage" // nolint: staticcheck
 	azautorest "github.com/Azure/go-autorest/autorest"
+	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/location"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tags"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
@@ -119,12 +122,52 @@ func dataSourceStorageAccount() *pluginsdk.Resource {
 				Computed: true,
 			},
 
+			"primary_blob_internet_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_blob_internet_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_blob_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_blob_microsoft_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
 			"secondary_blob_endpoint": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
 
 			"secondary_blob_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_blob_internet_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_blob_internet_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_blob_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_blob_microsoft_host": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
@@ -139,12 +182,32 @@ func dataSourceStorageAccount() *pluginsdk.Resource {
 				Computed: true,
 			},
 
+			"primary_queue_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_queue_microsoft_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
 			"secondary_queue_endpoint": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
 
 			"secondary_queue_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_queue_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_queue_microsoft_host": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
@@ -159,12 +222,32 @@ func dataSourceStorageAccount() *pluginsdk.Resource {
 				Computed: true,
 			},
 
+			"primary_table_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_table_microsoft_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
 			"secondary_table_endpoint": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
 
 			"secondary_table_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_table_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_table_microsoft_host": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
@@ -179,12 +262,52 @@ func dataSourceStorageAccount() *pluginsdk.Resource {
 				Computed: true,
 			},
 
+			"primary_web_internet_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_web_internet_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_web_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_web_microsoft_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
 			"secondary_web_endpoint": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
 
 			"secondary_web_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_web_internet_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_web_internet_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_web_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_web_microsoft_host": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
@@ -199,12 +322,52 @@ func dataSourceStorageAccount() *pluginsdk.Resource {
 				Computed: true,
 			},
 
+			"primary_dfs_internet_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_dfs_internet_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_dfs_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_dfs_microsoft_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
 			"secondary_dfs_endpoint": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
 
 			"secondary_dfs_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_dfs_internet_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_dfs_internet_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_dfs_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_dfs_microsoft_host": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
@@ -219,12 +382,52 @@ func dataSourceStorageAccount() *pluginsdk.Resource {
 				Computed: true,
 			},
 
+			"primary_file_internet_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_file_internet_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_file_microsoft_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"primary_file_microsoft_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
 			"secondary_file_endpoint": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
 
 			"secondary_file_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_file_internet_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_file_internet_endpoint": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_file_microsoft_host": {
+				Type:     pluginsdk.TypeString,
+				Computed: true,
+			},
+
+			"secondary_file_microsoft_endpoint": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
 			},
@@ -333,12 +536,16 @@ func dataSourceStorageAccount() *pluginsdk.Resource {
 func dataSourceStorageAccountRead(d *pluginsdk.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Storage.AccountsClient
 	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
-	endpointSuffix := meta.(*clients.Client).Account.Environment.StorageEndpointSuffix
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
 	defer cancel()
 
-	id := parse.NewStorageAccountID(subscriptionId, d.Get("resource_group_name").(string), d.Get("name").(string))
-	resp, err := client.GetProperties(ctx, id.ResourceGroup, id.Name, "")
+	storageDomainSuffix, ok := meta.(*clients.Client).Account.Environment.Storage.DomainSuffix()
+	if !ok {
+		return fmt.Errorf("could not determine Storage domain suffix for environment %q", meta.(*clients.Client).Account.Environment.Name)
+	}
+
+	id := commonids.NewStorageAccountID(subscriptionId, d.Get("resource_group_name").(string), d.Get("name").(string))
+	resp, err := client.GetProperties(ctx, id.ResourceGroupName, id.StorageAccountName, "")
 	if err != nil {
 		if utils.ResponseWasNotFound(resp.Response) {
 			return fmt.Errorf("%s was not found", id)
@@ -356,7 +563,7 @@ func dataSourceStorageAccountRead(d *pluginsdk.ResourceData, meta interface{}) e
 	d.Set("primary_access_key", "")
 	d.Set("secondary_access_key", "")
 
-	keys, err := client.ListKeys(ctx, id.ResourceGroup, id.Name, storage.ListKeyExpandKerb)
+	keys, err := client.ListKeys(ctx, id.ResourceGroupName, id.StorageAccountName, storage.ListKeyExpandKerb)
 	if err != nil {
 		// the API returns a 200 with an inner error of a 409..
 		var hasWriteLock bool
@@ -364,7 +571,7 @@ func dataSourceStorageAccountRead(d *pluginsdk.ResourceData, meta interface{}) e
 		if e, ok := err.(azautorest.DetailedError); ok {
 			if status, ok := e.StatusCode.(int); ok {
 				hasWriteLock = status == http.StatusConflict
-				doesntHavePermissions = status == http.StatusUnauthorized
+				doesntHavePermissions = status == http.StatusUnauthorized || status == http.StatusForbidden
 			}
 		}
 
@@ -389,10 +596,8 @@ func dataSourceStorageAccountRead(d *pluginsdk.ResourceData, meta interface{}) e
 		d.Set("nfsv3_enabled", props.EnableNfsV3)
 		d.Set("allow_nested_items_to_be_public", props.AllowBlobPublicAccess)
 
-		if customDomain := props.CustomDomain; customDomain != nil {
-			if err := d.Set("custom_domain", flattenStorageAccountCustomDomain(customDomain)); err != nil {
-				return fmt.Errorf("setting `custom_domain`: %+v", err)
-			}
+		if err := d.Set("custom_domain", flattenStorageAccountCustomDomain(props.CustomDomain)); err != nil {
+			return fmt.Errorf("setting `custom_domain`: %+v", err)
 		}
 
 		// Computed
@@ -402,17 +607,17 @@ func dataSourceStorageAccountRead(d *pluginsdk.ResourceData, meta interface{}) e
 		if accessKeys := keys.Keys; accessKeys != nil {
 			storageAccessKeys := *accessKeys
 			if len(storageAccessKeys) > 0 {
-				pcs := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=%s", *resp.Name, *storageAccessKeys[0].Value, endpointSuffix)
+				pcs := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=%s", *resp.Name, *storageAccessKeys[0].Value, *storageDomainSuffix)
 				d.Set("primary_connection_string", pcs)
 			}
 
 			if len(storageAccessKeys) > 1 {
-				scs := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=%s", *resp.Name, *storageAccessKeys[1].Value, endpointSuffix)
+				scs := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=%s", *resp.Name, *storageAccessKeys[1].Value, *storageDomainSuffix)
 				d.Set("secondary_connection_string", scs)
 			}
 		}
 
-		if err := flattenAndSetAzureRmStorageAccountPrimaryEndpoints(d, props.PrimaryEndpoints); err != nil {
+		if err := flattenAndSetAzureRmStorageAccountPrimaryEndpoints(d, props.PrimaryEndpoints, resp.RoutingPreference); err != nil {
 			return fmt.Errorf("setting primary endpoints and hosts for blob, queue, table and file: %+v", err)
 		}
 
@@ -424,7 +629,7 @@ func dataSourceStorageAccountRead(d *pluginsdk.ResourceData, meta interface{}) e
 			d.Set("primary_blob_connection_string", primaryBlobConnectStr)
 		}
 
-		if err := flattenAndSetAzureRmStorageAccountSecondaryEndpoints(d, props.SecondaryEndpoints); err != nil {
+		if err := flattenAndSetAzureRmStorageAccountSecondaryEndpoints(d, props.SecondaryEndpoints, resp.RoutingPreference); err != nil {
 			return fmt.Errorf("setting secondary endpoints and hosts for blob, queue, table: %+v", err)
 		}
 

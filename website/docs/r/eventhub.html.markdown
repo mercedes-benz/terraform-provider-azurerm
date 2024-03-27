@@ -51,7 +51,7 @@ The following arguments are supported:
 
 * `partition_count` - (Required) Specifies the current number of shards on the Event Hub.
 
-~> **Note:** `partition_count` cannot be changed unless Eventhub Namespace SKU is `Premium`.
+~> **Note:** `partition_count` cannot be changed unless Eventhub Namespace SKU is `Premium` and cannot be decreased.
 
 ~> **Note:** When using a dedicated Event Hubs cluster, maximum value of `partition_count` is 1024. When using a shared parent EventHub Namespace, maximum value is 32.
 
@@ -95,7 +95,7 @@ A `destination` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the EventHub.
 

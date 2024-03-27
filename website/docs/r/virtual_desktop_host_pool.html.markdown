@@ -54,7 +54,7 @@ The following arguments are supported:
 
 * `type` - (Required) The type of the Virtual Desktop Host Pool. Valid options are `Personal` or `Pooled`. Changing the type forces a new resource to be created.
 
-* `load_balancer_type` - (Required) `BreadthFirst` load balancing distributes new user sessions across all available session hosts in the host pool. Possible values are `BreadthFirst`, `DepthFirst` and `Persistent`. Changing this forces a new resource to be created.
+* `load_balancer_type` - (Required) `BreadthFirst` load balancing distributes new user sessions across all available session hosts in the host pool. Possible values are `BreadthFirst`, `DepthFirst` and `Persistent`.
     `DepthFirst` load balancing distributes new user sessions to an available session host with the highest number of connections but has not reached its maximum session limit threshold.
     `Persistent` should be used if the host pool type is `Personal`
 
@@ -75,9 +75,11 @@ The following arguments are supported:
 * `maximum_sessions_allowed` - (Optional) A valid integer value from 0 to 999999 for the maximum number of users that have concurrent sessions on a session host.
     Should only be set if the `type` of your Virtual Desktop Host Pool is `Pooled`.
 
-* `preferred_app_group_type` - (Optional) Option to specify the preferred Application Group type for the Virtual Desktop Host Pool. Valid options are `None`, `Desktop` or `RailApplications`. Default is `None`. Changing this forces a new resource to be created.
+* `preferred_app_group_type` - (Optional) Option to specify the preferred Application Group type for the Virtual Desktop Host Pool. Valid options are `None`, `Desktop` or `RailApplications`. Default is `Desktop`. Changing this forces a new resource to be created.
 
 * `scheduled_agent_updates` - (Optional) A `scheduled_agent_updates` block as defined below. This enables control of when Agent Updates will be applied to Session Hosts.
+
+* `vm_template` - (Optional) A VM template for session hosts configuration within hostpool. This is a JSON string.
 
 * `tags` - (Optional) A mapping of tags to assign to the resource.
 

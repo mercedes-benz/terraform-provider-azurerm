@@ -10,6 +10,8 @@ description: |-
 
 Manages a Table within an Azure Storage Account.
 
+~> **Note on Authentication** Shared Key authentication will always be used for this resource, as AzureAD authentication is not supported when setting or retrieving ACLs for Tables.
+
 ## Example Usage
 
 ```hcl
@@ -62,7 +64,7 @@ A `access_policy` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported in addition to the arguments listed above:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Table within the Storage Account.
 

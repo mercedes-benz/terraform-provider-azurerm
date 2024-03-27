@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package streamanalytics
 
 import (
@@ -5,9 +8,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
 	"github.com/hashicorp/go-azure-helpers/lang/response"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2020-03-01/outputs"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2021-10-01-preview/outputs"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/streamanalytics/migration"
@@ -146,11 +150,11 @@ func resourceStreamAnalyticsOutputEventHubCreateUpdate(d *pluginsdk.ResourceData
 	}
 
 	eventHubOutputDataSourceProps := &outputs.EventHubOutputDataSourceProperties{
-		PartitionKey:        utils.String(partitionKey),
+		PartitionKey:        pointer.To(partitionKey),
 		PropertyColumns:     utils.ExpandStringSlice(propertyColumns),
-		EventHubName:        utils.String(eventHubName),
-		ServiceBusNamespace: utils.String(serviceBusNamespace),
-		AuthenticationMode:  utils.ToPtr(outputs.AuthenticationMode(d.Get("authentication_mode").(string))),
+		EventHubName:        pointer.To(eventHubName),
+		ServiceBusNamespace: pointer.To(serviceBusNamespace),
+		AuthenticationMode:  pointer.To(outputs.AuthenticationMode(d.Get("authentication_mode").(string))),
 	}
 
 	if sharedAccessPolicyKey != "" {
@@ -162,7 +166,7 @@ func resourceStreamAnalyticsOutputEventHubCreateUpdate(d *pluginsdk.ResourceData
 	}
 
 	props := outputs.Output{
-		Name: utils.String(id.OutputName),
+		Name: pointer.To(id.OutputName),
 		Properties: &outputs.OutputProperties{
 			Datasource: &outputs.EventHubOutputDataSource{
 				Properties: eventHubOutputDataSourceProps,
@@ -208,7 +212,7 @@ func resourceStreamAnalyticsOutputEventHubRead(d *pluginsdk.ResourceData, meta i
 	}
 
 	d.Set("name", id.OutputName)
-	d.Set("stream_analytics_job_name", id.JobName)
+	d.Set("stream_analytics_job_name", id.StreamingJobName)
 	d.Set("resource_group_name", id.ResourceGroupName)
 
 	if model := resp.Model; model != nil {

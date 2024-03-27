@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package streamanalytics
 
 import (
@@ -5,15 +8,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
 	"github.com/hashicorp/go-azure-helpers/lang/response"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2020-03-01/outputs"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2020-03-01/streamingjobs"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2021-10-01-preview/outputs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/sdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/streamanalytics/migration"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/validation"
-	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
 type OutputPowerBIResource struct{}
@@ -116,7 +119,7 @@ func (r OutputPowerBIResource) Create() sdk.ResourceFunc {
 			if err != nil {
 				return err
 			}
-			id := outputs.NewOutputID(subscriptionId, streamingJobId.ResourceGroupName, streamingJobId.JobName, model.Name)
+			id := outputs.NewOutputID(subscriptionId, streamingJobId.ResourceGroupName, streamingJobId.StreamingJobName, model.Name)
 
 			existing, err := client.Get(ctx, id)
 			if err != nil && !response.WasNotFound(existing.HttpResponse) {
@@ -128,24 +131,24 @@ func (r OutputPowerBIResource) Create() sdk.ResourceFunc {
 			}
 
 			powerBIOutputProps := &outputs.PowerBIOutputDataSourceProperties{
-				Dataset:            utils.String(model.DataSet),
-				Table:              utils.String(model.Table),
-				GroupId:            utils.String(model.GroupID),
-				GroupName:          utils.String(model.GroupName),
-				RefreshToken:       utils.String("someRefreshToken"),               // A valid refresh token is currently only obtainable via the Azure Portal. Put a dummy string value here when creating the data source and then going to the Azure Portal to authenticate the data source which will update this property with a valid refresh token.
-				AuthenticationMode: utils.ToPtr(outputs.AuthenticationMode("Msi")), // Set authentication mode as "Msi" here since other modes requires params obtainable from portal only.
+				Dataset:            pointer.To(model.DataSet),
+				Table:              pointer.To(model.Table),
+				GroupId:            pointer.To(model.GroupID),
+				GroupName:          pointer.To(model.GroupName),
+				RefreshToken:       pointer.To("someRefreshToken"),                // A valid refresh token is currently only obtainable via the Azure Portal. Put a dummy string value here when creating the data source and then going to the Azure Portal to authenticate the data source which will update this property with a valid refresh token.
+				AuthenticationMode: pointer.To(outputs.AuthenticationMode("Msi")), // Set authentication mode as "Msi" here since other modes requires params obtainable from portal only.
 			}
 
 			if model.TokenUserDisplayName != "" {
-				powerBIOutputProps.TokenUserDisplayName = utils.String(model.TokenUserDisplayName)
+				powerBIOutputProps.TokenUserDisplayName = pointer.To(model.TokenUserDisplayName)
 			}
 
 			if model.TokenUserPrincipalName != "" {
-				powerBIOutputProps.TokenUserPrincipalName = utils.String(model.TokenUserPrincipalName)
+				powerBIOutputProps.TokenUserPrincipalName = pointer.To(model.TokenUserPrincipalName)
 			}
 
 			props := outputs.Output{
-				Name: utils.String(model.Name),
+				Name: pointer.To(model.Name),
 				Properties: &outputs.OutputProperties{
 					Datasource: &outputs.PowerBIOutputDataSource{
 						Properties: powerBIOutputProps,
@@ -263,7 +266,7 @@ func (r OutputPowerBIResource) Read() sdk.ResourceFunc {
 						return fmt.Errorf("converting %s to a PowerBI Output", *id)
 					}
 
-					streamingJobId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroupName, id.JobName)
+					streamingJobId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroupName, id.StreamingJobName)
 
 					state := OutputPowerBIResourceModel{
 						Name:               id.OutputName,

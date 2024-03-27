@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package commonids
 
 import (
@@ -7,45 +10,35 @@ import (
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/resourceids"
 )
 
-var _ resourceids.ResourceId = UserAssignedIdentityId{}
+var _ resourceids.ResourceId = &UserAssignedIdentityId{}
 
 // UserAssignedIdentityId is a struct representing the Resource ID for a User Assigned Identity
 type UserAssignedIdentityId struct {
-	SubscriptionId    string
-	ResourceGroupName string
-	ResourceName      string
+	SubscriptionId           string
+	ResourceGroupName        string
+	UserAssignedIdentityName string
 }
 
 // NewUserAssignedIdentityID returns a new UserAssignedIdentityId struct
-func NewUserAssignedIdentityID(subscriptionId string, resourceGroupName string, resourceName string) UserAssignedIdentityId {
+func NewUserAssignedIdentityID(subscriptionId string, resourceGroupName string, userAssignedIdentityName string) UserAssignedIdentityId {
 	return UserAssignedIdentityId{
-		SubscriptionId:    subscriptionId,
-		ResourceGroupName: resourceGroupName,
-		ResourceName:      resourceName,
+		SubscriptionId:           subscriptionId,
+		ResourceGroupName:        resourceGroupName,
+		UserAssignedIdentityName: userAssignedIdentityName,
 	}
 }
 
 // ParseUserAssignedIdentityID parses 'input' into a UserAssignedIdentityId
 func ParseUserAssignedIdentityID(input string) (*UserAssignedIdentityId, error) {
-	parser := resourceids.NewParserFromResourceIdType(UserAssignedIdentityId{})
+	parser := resourceids.NewParserFromResourceIdType(&UserAssignedIdentityId{})
 	parsed, err := parser.Parse(input, false)
 	if err != nil {
 		return nil, fmt.Errorf("parsing %q: %+v", input, err)
 	}
 
-	var ok bool
 	id := UserAssignedIdentityId{}
-
-	if id.SubscriptionId, ok = parsed.Parsed["subscriptionId"]; !ok {
-		return nil, fmt.Errorf("the segment 'subscriptionId' was not found in the resource id %q", input)
-	}
-
-	if id.ResourceGroupName, ok = parsed.Parsed["resourceGroupName"]; !ok {
-		return nil, fmt.Errorf("the segment 'resourceGroupName' was not found in the resource id %q", input)
-	}
-
-	if id.ResourceName, ok = parsed.Parsed["resourceName"]; !ok {
-		return nil, fmt.Errorf("the segment 'resourceName' was not found in the resource id %q", input)
+	if err := id.FromParseResult(*parsed); err != nil {
+		return nil, err
 	}
 
 	return &id, nil
@@ -54,28 +47,36 @@ func ParseUserAssignedIdentityID(input string) (*UserAssignedIdentityId, error) 
 // ParseUserAssignedIdentityIDInsensitively parses 'input' case-insensitively into a UserAssignedIdentityId
 // note: this method should only be used for API response data and not user input
 func ParseUserAssignedIdentityIDInsensitively(input string) (*UserAssignedIdentityId, error) {
-	parser := resourceids.NewParserFromResourceIdType(UserAssignedIdentityId{})
+	parser := resourceids.NewParserFromResourceIdType(&UserAssignedIdentityId{})
 	parsed, err := parser.Parse(input, true)
 	if err != nil {
 		return nil, fmt.Errorf("parsing %q: %+v", input, err)
 	}
 
-	var ok bool
 	id := UserAssignedIdentityId{}
-
-	if id.SubscriptionId, ok = parsed.Parsed["subscriptionId"]; !ok {
-		return nil, fmt.Errorf("the segment 'subscriptionId' was not found in the resource id %q", input)
-	}
-
-	if id.ResourceGroupName, ok = parsed.Parsed["resourceGroupName"]; !ok {
-		return nil, fmt.Errorf("the segment 'resourceGroupName' was not found in the resource id %q", input)
-	}
-
-	if id.ResourceName, ok = parsed.Parsed["resourceName"]; !ok {
-		return nil, fmt.Errorf("the segment 'resourceName' was not found in the resource id %q", input)
+	if err = id.FromParseResult(*parsed); err != nil {
+		return nil, err
 	}
 
 	return &id, nil
+}
+
+func (id *UserAssignedIdentityId) FromParseResult(input resourceids.ParseResult) error {
+	var ok bool
+
+	if id.SubscriptionId, ok = input.Parsed["subscriptionId"]; !ok {
+		return resourceids.NewSegmentNotSpecifiedError(id, "subscriptionId", input)
+	}
+
+	if id.ResourceGroupName, ok = input.Parsed["resourceGroupName"]; !ok {
+		return resourceids.NewSegmentNotSpecifiedError(id, "resourceGroupName", input)
+	}
+
+	if id.UserAssignedIdentityName, ok = input.Parsed["userAssignedIdentityName"]; !ok {
+		return resourceids.NewSegmentNotSpecifiedError(id, "userAssignedIdentityName", input)
+	}
+
+	return nil
 }
 
 // ValidateUserAssignedIdentityID checks that 'input' can be parsed as a User Assigned Identity ID
@@ -96,7 +97,7 @@ func ValidateUserAssignedIdentityID(input interface{}, key string) (warnings []s
 // ID returns the formatted User Assigned Identity ID
 func (id UserAssignedIdentityId) ID() string {
 	fmtString := "/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
-	return fmt.Sprintf(fmtString, id.SubscriptionId, id.ResourceGroupName, id.ResourceName)
+	return fmt.Sprintf(fmtString, id.SubscriptionId, id.ResourceGroupName, id.UserAssignedIdentityName)
 }
 
 // Segments returns a slice of Resource ID Segments which comprise this User Assigned Identity ID
@@ -109,7 +110,7 @@ func (id UserAssignedIdentityId) Segments() []resourceids.Segment {
 		resourceids.StaticSegment("providers", "providers", "providers"),
 		resourceids.ResourceProviderSegment("resourceProvider", "Microsoft.ManagedIdentity", "Microsoft.ManagedIdentity"),
 		resourceids.StaticSegment("userAssignedIdentities", "userAssignedIdentities", "userAssignedIdentities"),
-		resourceids.UserSpecifiedSegment("resourceName", "resourceValue"),
+		resourceids.UserSpecifiedSegment("userAssignedIdentityName", "userAssignedIdentityValue"),
 	}
 }
 
@@ -118,7 +119,7 @@ func (id UserAssignedIdentityId) String() string {
 	components := []string{
 		fmt.Sprintf("Subscription: %q", id.SubscriptionId),
 		fmt.Sprintf("Resource Group Name: %q", id.ResourceGroupName),
-		fmt.Sprintf("Resource Name: %q", id.ResourceName),
+		fmt.Sprintf("Name: %q", id.UserAssignedIdentityName),
 	}
 	return fmt.Sprintf("User Assigned Identity (%s)", strings.Join(components, "\n"))
 }

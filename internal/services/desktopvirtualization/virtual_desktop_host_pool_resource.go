@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package desktopvirtualization
 
 import (
@@ -71,7 +74,6 @@ func resourceVirtualDesktopHostPool() *pluginsdk.Resource {
 			"load_balancer_type": {
 				Type:     pluginsdk.TypeString,
 				Required: true,
-				ForceNew: true,
 				ValidateFunc: validation.StringInSlice([]string{
 					string(hostpool.LoadBalancerTypeBreadthFirst),
 					string(hostpool.LoadBalancerTypeDepthFirst),
@@ -194,6 +196,13 @@ func resourceVirtualDesktopHostPool() *pluginsdk.Resource {
 				},
 			},
 
+			"vm_template": {
+				Type:             pluginsdk.TypeString,
+				Optional:         true,
+				ValidateFunc:     validation.StringIsJSON,
+				DiffSuppressFunc: pluginsdk.SuppressJsonDiff,
+			},
+
 			"tags": commonschema.Tags(),
 		},
 	}
@@ -218,6 +227,15 @@ func resourceVirtualDesktopHostPoolCreate(d *pluginsdk.ResourceData, meta interf
 	}
 
 	personalDesktopAssignmentType := hostpool.PersonalDesktopAssignmentType(d.Get("personal_desktop_assignment_type").(string))
+	vmTemplate := d.Get("vm_template").(string)
+	if vmTemplate != "" {
+		// we have no use with the json object as azure accepts string only
+		// merely here for validation
+		_, err := pluginsdk.ExpandJsonFromString(vmTemplate)
+		if err != nil {
+			return fmt.Errorf("expanding JSON for `vm_template`: %+v", err)
+		}
+	}
 	payload := hostpool.HostPool{
 		Location: utils.String(location.Normalize(d.Get("location").(string))),
 		Tags:     tags.Expand(d.Get("tags").(map[string]interface{})),
@@ -233,6 +251,7 @@ func resourceVirtualDesktopHostPoolCreate(d *pluginsdk.ResourceData, meta interf
 			PersonalDesktopAssignmentType: &personalDesktopAssignmentType,
 			PreferredAppGroupType:         hostpool.PreferredAppGroupType(d.Get("preferred_app_group_type").(string)),
 			AgentUpdate:                   expandAgentUpdateCreate(d.Get("scheduled_agent_updates").([]interface{})),
+			VMTemplate:                    &vmTemplate,
 		},
 	}
 
@@ -263,7 +282,7 @@ func resourceVirtualDesktopHostPoolUpdate(d *pluginsdk.ResourceData, meta interf
 		payload.Tags = tags.Expand(d.Get("tags").(map[string]interface{}))
 	}
 
-	if d.HasChanges("custom_rdp_properties", "description", "friendly_name", "maximum_sessions_allowed", "preferred_app_group_type", "start_vm_on_connect", "validate_environment", "scheduled_agent_updates") {
+	if d.HasChanges("custom_rdp_properties", "description", "friendly_name", "load_balancer_type", "maximum_sessions_allowed", "preferred_app_group_type", "start_vm_on_connect", "validate_environment", "scheduled_agent_updates") {
 		payload.Properties = &hostpool.HostPoolPatchProperties{}
 
 		if d.HasChange("custom_rdp_properties") {
@@ -276,6 +295,11 @@ func resourceVirtualDesktopHostPoolUpdate(d *pluginsdk.ResourceData, meta interf
 
 		if d.HasChange("friendly_name") {
 			payload.Properties.FriendlyName = utils.String(d.Get("friendly_name").(string))
+		}
+
+		if d.HasChange("load_balancer_type") {
+			loadBalancerType := hostpool.LoadBalancerType(d.Get("load_balancer_type").(string))
+			payload.Properties.LoadBalancerType = &loadBalancerType
 		}
 
 		if d.HasChange("maximum_sessions_allowed") {
@@ -297,6 +321,10 @@ func resourceVirtualDesktopHostPoolUpdate(d *pluginsdk.ResourceData, meta interf
 
 		if d.HasChanges("scheduled_agent_updates") {
 			payload.Properties.AgentUpdate = expandAgentUpdatePatch(d.Get("scheduled_agent_updates").([]interface{}))
+		}
+
+		if d.HasChanges("vm_template") {
+			payload.Properties.VMTemplate = utils.String(d.Get("vm_template").(string))
 		}
 	}
 
@@ -358,6 +386,7 @@ func resourceVirtualDesktopHostPoolRead(d *pluginsdk.ResourceData, meta interfac
 		d.Set("type", string(props.HostPoolType))
 		d.Set("validate_environment", props.ValidationEnvironment)
 		d.Set("scheduled_agent_updates", flattenAgentUpdate(props.AgentUpdate))
+		d.Set("vm_template", props.VMTemplate)
 	}
 
 	return nil

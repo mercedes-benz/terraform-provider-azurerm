@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package compute_test
 
 import (
@@ -297,6 +300,35 @@ func TestAccWindowsVirtualMachine_diskOSStorageTypeUpdate(t *testing.T) {
 	})
 }
 
+func TestAccWindowsVirtualMachine_diskOSControllerType(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_windows_virtual_machine", "test")
+	r := WindowsVirtualMachineResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.diskOSControllerTypeNVMe(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep("admin_password"),
+		{
+			Config: r.diskOSControllerTypeSCSI(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep("admin_password"),
+		{
+			Config: r.diskOSControllerTypeNVMe(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep("admin_password"),
+	})
+}
+
 func TestAccWindowsVirtualMachine_diskOSWriteAcceleratorEnabled(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_windows_virtual_machine", "test")
 	r := WindowsVirtualMachineResource{}
@@ -542,6 +574,7 @@ resource "azurerm_key_vault_access_policy" "service-principal" {
     "Get",
     "Purge",
     "Update",
+    "GetRotationPolicy",
   ]
 
   secret_permissions = [
@@ -619,6 +652,7 @@ resource "azurerm_key_vault_access_policy" "disk-encryption" {
     "Get",
     "WrapKey",
     "UnwrapKey",
+    "GetRotationPolicy",
   ]
 
   tenant_id = azurerm_disk_encryption_set.test.identity.0.tenant_id
@@ -848,6 +882,70 @@ func (r WindowsVirtualMachineResource) diskOSStorageAccountTypeWithRestrictedLoc
 	return r.diskOSStorageAccountType(data, accountType)
 }
 
+func (r WindowsVirtualMachineResource) diskOSControllerTypeSCSI(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_windows_virtual_machine" "test" {
+  name                 = local.vm_name
+  resource_group_name  = azurerm_resource_group.test.name
+  location             = azurerm_resource_group.test.location
+  size                 = "Standard_E2bds_v5"
+  admin_username       = "adminuser"
+  admin_password       = "P@$$w0rd1234!"
+  disk_controller_type = "SCSI"
+
+  network_interface_ids = [
+    azurerm_network_interface.test.id,
+  ]
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "microsoftwindowsserver"
+    offer     = "windowsserver"
+    sku       = "2022-datacenter-azure-edition"
+    version   = "latest"
+  }
+}
+`, r.template(data))
+}
+
+func (r WindowsVirtualMachineResource) diskOSControllerTypeNVMe(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_windows_virtual_machine" "test" {
+  name                 = local.vm_name
+  resource_group_name  = azurerm_resource_group.test.name
+  location             = azurerm_resource_group.test.location
+  size                 = "Standard_E2bds_v5"
+  admin_username       = "adminuser"
+  admin_password       = "P@$$w0rd1234!"
+  disk_controller_type = "NVMe"
+
+  network_interface_ids = [
+    azurerm_network_interface.test.id,
+  ]
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "microsoftwindowsserver"
+    offer     = "windowsserver"
+    sku       = "2022-datacenter-azure-edition"
+    version   = "latest"
+  }
+}
+`, r.template(data))
+}
+
 func (r WindowsVirtualMachineResource) diskOSWriteAcceleratorEnabled(data acceptance.TestData, enabled bool) string {
 	return fmt.Sprintf(`
 %s
@@ -988,6 +1086,7 @@ resource "azurerm_key_vault_access_policy" "service-principal" {
     "Get",
     "Purge",
     "Update",
+    "GetRotationPolicy",
   ]
 
   secret_permissions = [
@@ -1034,6 +1133,7 @@ resource "azurerm_key_vault_access_policy" "disk-encryption" {
     "Get",
     "WrapKey",
     "UnwrapKey",
+    "GetRotationPolicy",
   ]
 
   tenant_id = azurerm_disk_encryption_set.test.identity.0.tenant_id

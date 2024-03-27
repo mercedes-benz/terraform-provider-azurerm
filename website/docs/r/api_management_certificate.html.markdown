@@ -80,8 +80,8 @@ resource "azurerm_key_vault" "example" {
 
 resource "azurerm_key_vault_access_policy" "example" {
   key_vault_id = azurerm_key_vault.example.id
-  tenant_id    = azurerm_api_management.example.identity.0.tenant_id
-  object_id    = azurerm_api_management.example.identity.0.principal_id
+  tenant_id    = azurerm_api_management.example.identity[0].tenant_id
+  object_id    = azurerm_api_management.example.identity[0].principal_id
 
   secret_permissions = [
     "Get",
@@ -156,7 +156,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-In addition to all arguments above, the following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the API Management Certificate.
 

@@ -14,6 +14,7 @@ Terraform supports a number of different methods for authenticating to Azure:
 - [Authenticating to Azure using a Service Principal and a Client Certificate](service_principal_client_certificate.html)
 - [Authenticating to Azure using a Service Principal and a Client Secret](service_principal_client_secret.html)
 - [Authenticating to Azure using OpenID Connect](service_principal_oidc.html)
+- [Authenticating to Azure using AKS Workload Identity](aks_workload_identity.html)
 
 ---
 
@@ -56,7 +57,6 @@ data "azurerm_role_definition" "contributor" {
 }
 
 resource "azurerm_role_assignment" "example" {
-  name               = azurerm_virtual_machine.example.name
   scope              = data.azurerm_subscription.current.id
   role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
   principal_id       = azurerm_virtual_machine.example.identity[0].principal_id
@@ -71,7 +71,7 @@ Terraform can be configured to use managed identity for authentication in one of
 
 ### Configuring with environment variables
 
-Setting the`ARM_USE_MSI` environment variable (equivalent to provider block argument [`use_msi`](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs#use_msi)) to `true` tells Terraform to use a managed identity.
+Setting the `ARM_USE_MSI` environment variable (equivalent to provider block argument [`use_msi`](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs#use_msi)) to `true` tells Terraform to use a managed identity.
 
 By default, Terraform will use the system assigned identity for authentication. To use a user assigned identity instead, you will need to specify the `ARM_CLIENT_ID` environment variable (equivalent to provider block argument [`client_id`](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs#client_id)) to the [client id](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/user_assigned_identity#client_id) of the identity.
 
@@ -131,36 +131,6 @@ provider "azurerm" {
 
   use_msi = true
   #...
-}
-```
-
-If you intend to configure a remote backend in the provider block, put `use_msi` outside of the backend block:
-
-```hcl
-# We strongly recommend using the required_providers block to set the
-# Azure Provider source and version being used
-terraform {
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "=3.0.0"
-    }
-  }
-}
-
-# Configure the Microsoft Azure Provider
-provider "azurerm" {
-  features {}
-
-  use_msi = true
-
-  backend "azurerm" {
-    storage_account_name = "abcd1234"
-    container_name       = "tfstate"
-    key                  = "prod.terraform.tfstate"
-    subscription_id      = "00000000-0000-0000-0000-000000000000"
-    tenant_id            = "00000000-0000-0000-0000-000000000000"
-  }
 }
 ```
 
