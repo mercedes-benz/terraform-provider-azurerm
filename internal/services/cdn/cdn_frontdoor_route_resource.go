@@ -64,7 +64,7 @@ func resourceCdnFrontDoorRoute() *pluginsdk.Resource {
 			// can provision/destroy the resources in the correct order.
 			"cdn_frontdoor_origin_ids": {
 				Type:     pluginsdk.TypeList,
-				Required: true,
+				Optional: true,
 
 				Elem: &pluginsdk.Schema{
 					Type:         pluginsdk.TypeString,
