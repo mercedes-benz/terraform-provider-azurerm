@@ -12,7 +12,7 @@ import (
 
 	"github.com/hashicorp/go-azure-helpers/lang/pointer"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/containerservice/2023-06-02-preview/agentpools"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/containerservice/2024-05-01/agentpools"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
@@ -52,6 +52,12 @@ func TestAccKubernetesCluster_updateVmSizeAfterFailureWithTempAndDefault(t *test
 				check.That(data.ResourceName).ExistsInAzure(r),
 				// create the temporary node pool to simulate the case where both old default node pool and temp node pool exist
 				data.CheckWithClientForResource(func(ctx context.Context, clients *clients.Client, state *terraform.InstanceState) error {
+					if _, ok := ctx.Deadline(); !ok {
+						var cancel context.CancelFunc
+						ctx, cancel = context.WithTimeout(ctx, 1*time.Hour)
+						defer cancel()
+					}
+
 					client := clients.Containers.AgentPoolsClient
 
 					id, err := commonids.ParseKubernetesClusterID(state.Attributes["id"])
@@ -73,9 +79,6 @@ func TestAccKubernetesCluster_updateVmSizeAfterFailureWithTempAndDefault(t *test
 					profile := resp.Model
 					profile.Name = &tempNodePoolName
 					profile.Properties.VMSize = pointer.To("Standard_DS3_v2")
-
-					ctx, cancel := context.WithDeadline(clients.StopContext, time.Now().Add(1*time.Hour))
-					defer cancel()
 
 					tempNodePoolId := agentpools.NewAgentPoolID(id.SubscriptionId, id.ResourceGroupName, id.ManagedClusterName, tempNodePoolName)
 					if err := client.CreateOrUpdateThenPoll(ctx, tempNodePoolId, *profile); err != nil {
@@ -108,6 +111,12 @@ func TestAccKubernetesCluster_updateVmSizeAfterFailureWithTempWithoutDefault(t *
 				check.That(data.ResourceName).ExistsInAzure(r),
 				// create the temporary node pool and delete the old default node pool to simulate the case where resizing fails when trying to bring up the new node pool
 				data.CheckWithClientForResource(func(ctx context.Context, clients *clients.Client, state *terraform.InstanceState) error {
+					if _, ok := ctx.Deadline(); !ok {
+						var cancel context.CancelFunc
+						ctx, cancel = context.WithTimeout(ctx, 1*time.Hour)
+						defer cancel()
+					}
+
 					client := clients.Containers.AgentPoolsClient
 
 					id, err := commonids.ParseKubernetesClusterID(state.Attributes["id"])
@@ -130,20 +139,12 @@ func TestAccKubernetesCluster_updateVmSizeAfterFailureWithTempWithoutDefault(t *
 					profile.Name = &tempNodePoolName
 					profile.Properties.VMSize = pointer.To("Standard_DS3_v2")
 
-					ctx, cancel := context.WithDeadline(clients.StopContext, time.Now().Add(1*time.Hour))
-					defer cancel()
-
 					tempNodePoolId := agentpools.NewAgentPoolID(id.SubscriptionId, id.ResourceGroupName, id.ManagedClusterName, tempNodePoolName)
 					if err := client.CreateOrUpdateThenPoll(ctx, tempNodePoolId, *profile); err != nil {
 						return fmt.Errorf("creating %s: %+v", tempNodePoolId, err)
 					}
 
-					ignorePodDisruptionBudget := true
-					deleteOpts := agentpools.DeleteOperationOptions{
-						IgnorePodDisruptionBudget: &ignorePodDisruptionBudget,
-					}
-
-					if err := client.DeleteThenPoll(ctx, defaultNodePoolId, deleteOpts); err != nil {
+					if err := client.DeleteThenPoll(ctx, defaultNodePoolId); err != nil {
 						return fmt.Errorf("deleting default %s: %+v", defaultNodePoolId, err)
 					}
 
@@ -177,13 +178,6 @@ func TestAccKubernetesCluster_cycleSystemNodePool(t *testing.T) {
 		data.ImportStep(),
 		{
 			Config: r.updateOsDisk(data, "Ephemeral", 75),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).ExistsInAzure(r),
-			),
-		},
-		data.ImportStep("default_node_pool.0.temporary_name_for_rotation"),
-		{
-			Config: r.updateOsSku(data, "Mariner"),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -483,6 +477,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     name       = "default"
     node_count = 1
     vm_size    = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -519,6 +516,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     node_count             = 1
     vm_size                = "Standard_DS2_v2"
     enable_host_encryption = true
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -554,6 +554,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     name       = "default"
     node_count = 1
     vm_size    = "Standard_D2ads_v5"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -590,6 +593,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     temporary_name_for_rotation = "temp"
     node_count                  = 1
     vm_size                     = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -627,6 +633,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     node_count                  = 1
     vm_size                     = "%s"
     enable_host_encryption      = false
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -677,6 +686,9 @@ resource "azurerm_kubernetes_cluster" "test" {
         vm_swappiness = 40
       }
     }
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -726,6 +738,10 @@ resource "azurerm_kubernetes_cluster" "test" {
         vm_swappiness = 45
       }
     }
+
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -762,6 +778,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     name         = "default"
     node_count   = 1
     vm_size      = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -800,6 +819,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     os_disk_type                = "%s"
     os_disk_size_gb             = %d
     vm_size                     = "Standard_D2ads_v5"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -812,53 +834,6 @@ resource "azurerm_kubernetes_cluster" "test" {
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, data.RandomInteger, osDiskType, osDiskSize)
-}
-
-func (KubernetesClusterResource) updateOsSku(data acceptance.TestData, osSku string) string {
-	return fmt.Sprintf(`
-provider "azurerm" {
-  features {}
-}
-
-resource "azurerm_resource_group" "test" {
-  name     = "acctestRG-aks-%d"
-  location = "%s"
-}
-
-resource "azurerm_kubernetes_cluster" "test" {
-  name                = "acctestaks%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  dns_prefix          = "acctestaks%d"
-
-  default_node_pool {
-    name                        = "default"
-    temporary_name_for_rotation = "temp"
-    node_count                  = 1
-    os_sku                      = "%s"
-    vm_size                     = "Standard_D2ads_v5"
-
-    kubelet_config {
-      pod_max_pid = 12346
-    }
-
-    linux_os_config {
-      sysctl_config {
-        vm_swappiness = 40
-      }
-    }
-  }
-
-  identity {
-    type = "SystemAssigned"
-  }
-
-  network_profile {
-    network_plugin    = "kubenet"
-    load_balancer_sku = "standard"
-  }
-}
-`, data.RandomInteger, data.Locations.Primary, data.RandomInteger, data.RandomInteger, osSku)
 }
 
 func (KubernetesClusterResource) addAgentConfig(data acceptance.TestData, numberOfAgents int) string {
@@ -882,6 +857,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     name       = "default"
     node_count = %d
     vm_size    = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -917,6 +895,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     name       = "default"
     node_count = 1
     vm_size    = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -957,6 +938,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     tags = {
       Hello = "World"
     }
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -995,6 +979,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     min_count           = 2
     max_count           = 4
     vm_size             = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -1027,6 +1014,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     max_count           = 2
     enable_auto_scaling = true
     vm_size             = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -1061,6 +1051,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     enable_auto_scaling = true
     vm_size             = "Standard_DS2_v2"
     zones               = ["1", "2"]
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   identity {
@@ -1098,6 +1091,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     min_count           = 2
     max_count           = 4
     vm_size             = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   auto_scaler_profile {
@@ -1135,6 +1131,9 @@ resource "azurerm_kubernetes_cluster" "test" {
     min_count           = 2
     max_count           = 4
     vm_size             = "Standard_DS2_v2"
+    upgrade_settings {
+      max_surge = "10%%"
+    }
   }
 
   auto_scaler_profile {

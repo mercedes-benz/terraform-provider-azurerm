@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
+	"github.com/hashicorp/terraform-provider-azurerm/internal/features"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 	"github.com/tombuildsstuff/giovanni/storage/2023-11-03/table/entities"
@@ -51,6 +52,10 @@ func TestAccTableEntity_basicAzureADAuth(t *testing.T) {
 
 func TestAccTableEntity_basicDeprecated(t *testing.T) {
 	// TODO: remove test in v4.0
+	if features.FourPointOhBeta() {
+		t.Skip("test not applicable in v4.0")
+	}
+
 	data := acceptance.BuildTestData(t, "azurerm_storage_table_entity", "test")
 	r := StorageTableEntityResource{}
 
@@ -67,6 +72,10 @@ func TestAccTableEntity_basicDeprecated(t *testing.T) {
 
 func TestAccTableEntity_migrateStorageTableId(t *testing.T) {
 	// TODO: remove test in v4.0
+	if features.FourPointOhBeta() {
+		t.Skip("test not applicable in v4.0")
+	}
+
 	data := acceptance.BuildTestData(t, "azurerm_storage_table_entity", "test")
 	r := StorageTableEntityResource{}
 
@@ -182,7 +191,7 @@ func (r StorageTableEntityResource) Exists(ctx context.Context, client *clients.
 	if err != nil {
 		return nil, err
 	}
-	account, err := client.Storage.FindAccount(ctx, id.AccountId.AccountName)
+	account, err := client.Storage.FindAccount(ctx, client.Account.SubscriptionId, id.AccountId.AccountName)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving Account %q for Table %q: %+v", id.AccountId.AccountName, id.TableName, err)
 	}
@@ -205,7 +214,7 @@ func (r StorageTableEntityResource) Exists(ctx context.Context, client *clients.
 		if response.WasNotFound(resp.HttpResponse) {
 			return utils.Bool(false), nil
 		}
-		return nil, fmt.Errorf("retrieving Entity (Partition Key %q / Row Key %q) (Table %q / Storage Account %q / Resource Group %q): %+v", id.PartitionKey, id.RowKey, id.TableName, id.AccountId.AccountName, account.ResourceGroup, err)
+		return nil, fmt.Errorf("retrieving Entity (Partition Key %q / Row Key %q) (Table %q in %s): %+v", id.PartitionKey, id.RowKey, id.TableName, account.StorageAccountId, err)
 	}
 	return utils.Bool(true), nil
 }

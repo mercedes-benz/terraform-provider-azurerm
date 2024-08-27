@@ -41,7 +41,7 @@ resource "azurerm_container_app" "example" {
   template {
     container {
       name   = "examplecontainerapp"
-      image  = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"
       cpu    = 0.25
       memory = "0.5Gi"
     }
@@ -85,11 +85,19 @@ The following arguments are supported:
 
 A `secret` block supports the following:
 
-* `name` - (Required) The Secret name.
+* `name` - (Required) The secret name.
 
-* `value` - (Required) The value for this secret.
+* `identity` - (Optional) The identity to use for accessing the Key Vault secret reference. This can either be the Resource ID of a User Assigned Identity, or `System` for the System Assigned Identity.
 
-!> **Note:** Secrets cannot be removed from the service once added, attempting to do so will result in an error. Their values may be zeroed, i.e. set to `""`, but the named secret must persist. This is due to a technical limitation on the service which causes the service to become unmanageable. See [this issue](https://github.com/microsoft/azure-container-apps/issues/395) for more details.
+!> **Note:** `identity` must be used together with `key_vault_secret_id`
+
+* `key_vault_secret_id` - (Optional) The ID of a Key Vault secret. This can be a versioned or version-less ID.
+
+!> **Note:** When using `key_vault_secret_id`, `ignore_changes` should be used to ignore any changes to `value`.
+
+* `value` - (Optional) The value for this secret.
+
+!> **Note:** `value` will be ignored if `key_vault_secret_id` and `identity` are provided.
 
 ---
 
@@ -365,8 +373,6 @@ An `ingress` block supports the following:
 
 * `allow_insecure_connections` - (Optional) Should this ingress allow insecure connections?
 
-* `custom_domain` - (Optional) One or more `custom_domain` block as detailed below.
-
 * `fqdn` - The FQDN of the ingress.
 
 * `external_enabled` - (Optional) Are connections to this Ingress from outside the Container App Environment enabled? Defaults to `false`.
@@ -385,16 +391,6 @@ An `ingress` block supports the following:
 
 ---
 
-A `custom_domain` block supports the following:
-
-* `certificate_binding_type` - (Optional) The Binding type. Possible values include `Disabled` and `SniEnabled`. Defaults to `Disabled`.
-
-* `certificate_id` - (Required) The ID of the Container App Environment Certificate.
-
-* `name` - (Required) The hostname of the Certificate. Must be the CN or a named SAN in the certificate.
-
----
-
 A `ip_security_restriction` block supports the following:
 
 * `action` - (Required) The IP-filter action. `Allow` or `Deny`.
@@ -403,7 +399,7 @@ A `ip_security_restriction` block supports the following:
 
 * `description` - (Optional) Describe the IP restriction rule that is being sent to the container-app.
 
-* `ip_address_range` - (Required) CIDR notation to match incoming IP address.
+* `ip_address_range` - (Required) The incoming IP address or range of IP addresses (in CIDR notation).
 
 * `name` - (Required) Name for the IP restriction rule.
 
@@ -461,6 +457,8 @@ In addition to the Arguments listed above - the following Attributes are exporte
 
 * `custom_domain_verification_id` - The ID of the Custom Domain Verification for this Container App.
 
+* `ingress` - An `ingress` block as detailed below.
+
 * `latest_revision_fqdn` - The FQDN of the Latest Revision of the Container App.
 
 * `latest_revision_name` - The name of the latest Container Revision.
@@ -469,6 +467,21 @@ In addition to the Arguments listed above - the following Attributes are exporte
 
 * `outbound_ip_addresses` - A list of the Public IP Addresses which the Container App uses for outbound network access.
 
+---
+
+An `ingress` block exports the following:
+
+* `custom_domain` - One or more `custom_domain` block as detailed below.
+
+---
+
+A `custom_domain` block exports the following:
+
+* `certificate_binding_type` - The Binding type.
+
+* `certificate_id` - The ID of the Container App Environment Certificate.
+
+* `name` - The hostname of the Certificate.
 
 ## Timeouts
 

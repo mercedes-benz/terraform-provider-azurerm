@@ -23,7 +23,6 @@ type SiteConfigWindows struct {
 	ApiManagementConfigId         string                    `tfschema:"api_management_api_id"`
 	ApiDefinition                 string                    `tfschema:"api_definition_url"`
 	AppCommandLine                string                    `tfschema:"app_command_line"`
-	AutoHeal                      bool                      `tfschema:"auto_heal_enabled"`
 	AutoHealSettings              []AutoHealSettingWindows  `tfschema:"auto_heal_setting"`
 	UseManagedIdentityACR         bool                      `tfschema:"container_registry_use_managed_identity"`
 	ContainerRegistryUserMSI      string                    `tfschema:"container_registry_managed_identity_client_id"`
@@ -47,6 +46,7 @@ type SiteConfigWindows struct {
 	HealthCheckEvictionTime       int64                     `tfschema:"health_check_eviction_time_in_min"`
 	WorkerCount                   int64                     `tfschema:"worker_count"`
 	ApplicationStack              []ApplicationStackWindows `tfschema:"application_stack"`
+	HandlerMapping                []HandlerMappings         `tfschema:"handler_mapping"`
 	VirtualApplications           []VirtualApplication      `tfschema:"virtual_application"`
 	MinTlsVersion                 string                    `tfschema:"minimum_tls_version"`
 	ScmMinTlsVersion              string                    `tfschema:"scm_minimum_tls_version"`
@@ -89,15 +89,6 @@ func SiteConfigSchemaWindows() *pluginsdk.Schema {
 				"app_command_line": {
 					Type:     pluginsdk.TypeString,
 					Optional: true,
-				},
-
-				"auto_heal_enabled": {
-					Type:     pluginsdk.TypeBool,
-					Optional: true,
-					Default:  false,
-					RequiredWith: []string{
-						"site_config.0.auto_heal_setting",
-					},
 				},
 
 				"auto_heal_setting": autoHealSettingSchemaWindows(),
@@ -231,14 +222,26 @@ func SiteConfigSchemaWindows() *pluginsdk.Schema {
 				"health_check_path": {
 					Type:     pluginsdk.TypeString,
 					Optional: true,
+					RequiredWith: func() []string {
+						if features.FourPointOhBeta() {
+							return []string{"site_config.0.health_check_eviction_time_in_min"}
+						}
+						return []string{}
+					}(),
 				},
 
 				"health_check_eviction_time_in_min": {
 					Type:         pluginsdk.TypeInt,
 					Optional:     true,
-					Computed:     true,
+					Computed:     !features.FourPointOhBeta(),
 					ValidateFunc: validation.IntBetween(2, 10),
-					Description:  "The amount of time in minutes that a node is unhealthy before being removed from the load balancer. Possible values are between `2` and `10`. Defaults to `10`. Only valid in conjunction with `health_check_path`",
+					RequiredWith: func() []string {
+						if features.FourPointOhBeta() {
+							return []string{"site_config.0.health_check_path"}
+						}
+						return []string{}
+					}(),
+					Description: "The amount of time in minutes that a node is unhealthy before being removed from the load balancer. Possible values are between `2` and `10`. Only valid in conjunction with `health_check_path`",
 				},
 
 				"worker_count": {
@@ -263,6 +266,8 @@ func SiteConfigSchemaWindows() *pluginsdk.Schema {
 				},
 
 				"cors": CorsSettingsSchema(),
+
+				"handler_mapping": HandlerMappingSchema(),
 
 				"virtual_application": virtualApplicationsSchema(),
 
@@ -317,11 +322,6 @@ func SiteConfigSchemaWindowsComputed() *pluginsdk.Schema {
 
 				"app_command_line": {
 					Type:     pluginsdk.TypeString,
-					Computed: true,
-				},
-
-				"auto_heal_enabled": {
-					Type:     pluginsdk.TypeBool,
 					Computed: true,
 				},
 
@@ -441,6 +441,8 @@ func SiteConfigSchemaWindowsComputed() *pluginsdk.Schema {
 
 				"cors": CorsSettingsSchemaComputed(),
 
+				"handler_mapping": HandlerMappingSchemaComputed(),
+
 				"virtual_application": virtualApplicationsSchemaComputed(),
 
 				"detailed_error_logging_enabled": {
@@ -466,8 +468,8 @@ func (s *SiteConfigWindows) ExpandForCreate(appSettings map[string]string) (*web
 	expanded := &webapps.SiteConfig{}
 
 	expanded.AlwaysOn = pointer.To(s.AlwaysOn)
+	expanded.AutoHealEnabled = pointer.To(false)
 	expanded.AcrUseManagedIdentityCreds = pointer.To(s.UseManagedIdentityACR)
-	expanded.AutoHealEnabled = pointer.To(s.AutoHeal)
 	expanded.FtpsState = pointer.To(webapps.FtpsState(s.FtpsState))
 	expanded.HTTP20Enabled = pointer.To(s.Http2Enabled)
 	expanded.LoadBalancing = pointer.To(webapps.SiteLoadBalancing(s.LoadBalancing))
@@ -479,6 +481,7 @@ func (s *SiteConfigWindows) ExpandForCreate(appSettings map[string]string) (*web
 	expanded.ScmMinTlsVersion = pointer.To(webapps.SupportedTlsVersions(s.ScmMinTlsVersion))
 	expanded.Use32BitWorkerProcess = pointer.To(s.Use32BitWorker)
 	expanded.WebSocketsEnabled = pointer.To(s.WebSockets)
+	expanded.HandlerMappings = expandHandlerMapping(s.HandlerMapping)
 	expanded.VirtualApplications = expandVirtualApplications(s.VirtualApplications)
 	expanded.VnetRouteAllEnabled = pointer.To(s.VnetRouteAllEnabled)
 	expanded.IPSecurityRestrictionsDefaultAction = pointer.To(webapps.DefaultAction(s.IpRestrictionDefaultAction))
@@ -506,6 +509,7 @@ func (s *SiteConfigWindows) ExpandForCreate(appSettings map[string]string) (*web
 			if appSettings == nil {
 				appSettings = make(map[string]string)
 			}
+
 			appSettings["WEBSITE_NODE_DEFAULT_VERSION"] = winAppStack.NodeVersion
 		}
 		if winAppStack.NetFrameworkVersion != "" {
@@ -550,6 +554,10 @@ func (s *SiteConfigWindows) ExpandForCreate(appSettings map[string]string) (*web
 		}
 
 		if winAppStack.DockerImageName != "" {
+			if appSettings == nil {
+				appSettings = make(map[string]string)
+			}
+
 			expanded.WindowsFxVersion = pointer.To(EncodeDockerFxStringWindows(winAppStack.DockerImageName, winAppStack.DockerRegistryUrl))
 			appSettings["DOCKER_REGISTRY_SERVER_URL"] = winAppStack.DockerRegistryUrl
 			appSettings["DOCKER_REGISTRY_SERVER_USERNAME"] = winAppStack.DockerRegistryUsername
@@ -604,6 +612,7 @@ func (s *SiteConfigWindows) ExpandForCreate(appSettings map[string]string) (*web
 	}
 
 	if len(s.AutoHealSettings) != 0 {
+		expanded.AutoHealEnabled = pointer.To(true)
 		expanded.AutoHealRules = expandAutoHealSettingsWindows(s.AutoHealSettings)
 	}
 
@@ -618,7 +627,6 @@ func (s *SiteConfigWindows) ExpandForUpdate(metadata sdk.ResourceMetaData, exist
 
 	expanded.AlwaysOn = pointer.To(s.AlwaysOn)
 	expanded.AcrUseManagedIdentityCreds = pointer.To(s.UseManagedIdentityACR)
-	expanded.AutoHealEnabled = pointer.To(s.AutoHeal)
 	expanded.HTTP20Enabled = pointer.To(s.Http2Enabled)
 	expanded.ScmIPSecurityRestrictionsUseMain = pointer.To(s.ScmUseMainIpRestriction)
 	expanded.LocalMySqlEnabled = pointer.To(s.LocalMysql)
@@ -646,12 +654,14 @@ func (s *SiteConfigWindows) ExpandForUpdate(metadata sdk.ResourceMetaData, exist
 
 	if len(s.ApplicationStack) == 1 {
 		winAppStack := s.ApplicationStack[0]
-		if metadata.ResourceData.HasChange("site_config.0.application_stack.0.node_version") {
+
+		if metadata.ResourceData.HasChange("site_config.0.application_stack.0.node_version") || winAppStack.NodeVersion != "" {
 			if appSettings == nil {
 				appSettings = make(map[string]string)
 			}
 			appSettings["WEBSITE_NODE_DEFAULT_VERSION"] = winAppStack.NodeVersion
 		}
+
 		if metadata.ResourceData.HasChanges("site_config.0.application_stack.0.dotnet_version", "site_config.0.application_stack.0.dotnet_core_version") {
 			switch {
 			case winAppStack.NetFrameworkVersion != "":
@@ -709,7 +719,6 @@ func (s *SiteConfigWindows) ExpandForUpdate(metadata sdk.ResourceMetaData, exist
 			appSettings["DOCKER_REGISTRY_SERVER_URL"] = winAppStack.DockerRegistryUrl
 			appSettings["DOCKER_REGISTRY_SERVER_USERNAME"] = winAppStack.DockerRegistryUsername
 			appSettings["DOCKER_REGISTRY_SERVER_PASSWORD"] = winAppStack.DockerRegistryPassword
-
 		}
 
 	} else {
@@ -717,6 +726,12 @@ func (s *SiteConfigWindows) ExpandForUpdate(metadata sdk.ResourceMetaData, exist
 	}
 
 	expanded.AppSettings = ExpandAppSettingsForCreate(appSettings)
+
+	if metadata.ResourceData.HasChange("site_config.0.handler_mapping") {
+		expanded.HandlerMappings = expandHandlerMappingForUpdate(s.HandlerMapping)
+	} else {
+		expanded.HandlerMappings = expandHandlerMapping(s.HandlerMapping)
+	}
 
 	if metadata.ResourceData.HasChange("site_config.0.virtual_application") {
 		expanded.VirtualApplications = expandVirtualApplicationsForUpdate(s.VirtualApplications)
@@ -798,7 +813,12 @@ func (s *SiteConfigWindows) ExpandForUpdate(metadata sdk.ResourceMetaData, exist
 		}
 		expanded.Cors = cors
 	}
+
 	if metadata.ResourceData.HasChange("site_config.0.auto_heal_setting") {
+		expanded.AutoHealEnabled = pointer.To(false)
+		if len(s.AutoHealSettings) != 0 {
+			expanded.AutoHealEnabled = pointer.To(true)
+		}
 		expanded.AutoHealRules = expandAutoHealSettingsWindows(s.AutoHealSettings)
 	}
 
@@ -813,7 +833,6 @@ func (s *SiteConfigWindows) Flatten(appSiteConfig *webapps.SiteConfig, currentSt
 	if appSiteConfig != nil {
 		s.AlwaysOn = pointer.From(appSiteConfig.AlwaysOn)
 		s.AppCommandLine = pointer.From(appSiteConfig.AppCommandLine)
-		s.AutoHeal = pointer.From(appSiteConfig.AutoHealEnabled)
 		s.AutoHealSettings = flattenAutoHealSettingsWindows(appSiteConfig.AutoHealRules)
 		s.ContainerRegistryUserMSI = pointer.From(appSiteConfig.AcrUserManagedIdentityID)
 		s.Cors = FlattenCorsSettings(appSiteConfig.Cors)
@@ -835,6 +854,7 @@ func (s *SiteConfigWindows) Flatten(appSiteConfig *webapps.SiteConfig, currentSt
 		s.ScmUseMainIpRestriction = pointer.From(appSiteConfig.ScmIPSecurityRestrictionsUseMain)
 		s.Use32BitWorker = pointer.From(appSiteConfig.Use32BitWorkerProcess)
 		s.UseManagedIdentityACR = pointer.From(appSiteConfig.AcrUseManagedIdentityCreds)
+		s.HandlerMapping = flattenHandlerMapping(appSiteConfig.HandlerMappings)
 		s.VirtualApplications = flattenVirtualApplications(appSiteConfig.VirtualApplications)
 		s.WebSockets = pointer.From(appSiteConfig.WebSocketsEnabled)
 		s.VnetRouteAllEnabled = pointer.From(appSiteConfig.VnetRouteAllEnabled)
@@ -926,7 +946,7 @@ func (s *SiteConfigWindows) DecodeDockerAppStack(input map[string]string) {
 
 	registryHost := trimURLScheme(applicationStack.DockerRegistryUrl)
 	dockerString := strings.TrimPrefix(s.WindowsFxVersion, "DOCKER|")
-	applicationStack.DockerImageName = strings.TrimPrefix(dockerString, registryHost)
+	applicationStack.DockerImageName = strings.TrimPrefix(dockerString, registryHost+"/")
 
 	s.ApplicationStack = []ApplicationStackWindows{applicationStack}
 }

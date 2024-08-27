@@ -6,7 +6,8 @@ package client
 import (
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/services/preview/alertsmanagement/mgmt/2019-06-01-preview/alertsmanagement" // nolint: staticcheck
+	"github.com/hashicorp/go-azure-sdk/resource-manager/alertsmanagement/2019-05-05-preview/actionrules"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/alertsmanagement/2019-06-01/smartdetectoralertrules"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/alertsmanagement/2021-08-08/alertprocessingrules"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/alertsmanagement/2023-03-01/prometheusrulegroups"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/azureactivedirectory/2017-04-01/diagnosticsettings"
@@ -15,10 +16,10 @@ import (
 	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2018-03-01/metricalerts"
 	scheduledqueryrules2018 "github.com/hashicorp/go-azure-sdk/resource-manager/insights/2018-04-16/scheduledqueryrules"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2019-10-17-preview/privatelinkscopedresources"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2019-10-17-preview/privatelinkscopesapis"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2020-10-01/activitylogalertsapis"
 	diagnosticSettingClient "github.com/hashicorp/go-azure-sdk/resource-manager/insights/2021-05-01-preview/diagnosticsettings"
 	diagnosticCategoryClient "github.com/hashicorp/go-azure-sdk/resource-manager/insights/2021-05-01-preview/diagnosticsettingscategories"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2021-07-01-preview/privatelinkscopesapis"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2022-06-01/datacollectionendpoints"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2022-06-01/datacollectionruleassociations"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2022-06-01/datacollectionrules"
@@ -37,9 +38,9 @@ type Client struct {
 	AutoscaleSettingsClient *autoscalesettings.AutoScaleSettingsClient
 
 	// alerts management
-	ActionRulesClient             *alertsmanagement.ActionRulesClient
+	ActionRulesClient             *actionrules.ActionRulesClient
 	AlertProcessingRulesClient    *alertprocessingrules.AlertProcessingRulesClient
-	SmartDetectorAlertRulesClient *alertsmanagement.SmartDetectorAlertRulesClient
+	SmartDetectorAlertRulesClient *smartdetectoralertrules.SmartDetectorAlertRulesClient
 
 	// Monitor
 	ActionGroupsClient                   *actiongroupsapis.ActionGroupsAPIsClient
@@ -73,8 +74,11 @@ func NewClient(o *common.ClientOptions) (*Client, error) {
 	}
 	o.Configure(AutoscaleSettingsClient.Client, o.Authorizers.ResourceManager)
 
-	ActionRulesClient := alertsmanagement.NewActionRulesClientWithBaseURI(o.ResourceManagerEndpoint, o.SubscriptionId)
-	o.ConfigureClient(&ActionRulesClient.Client, o.ResourceManagerAuthorizer)
+	ActionRulesClient, err := actionrules.NewActionRulesClientWithBaseURI(o.Environment.ResourceManager)
+	if err != nil {
+		return nil, fmt.Errorf("building Action Rules client: %+v", err)
+	}
+	o.Configure(ActionRulesClient.Client, o.Authorizers.ResourceManager)
 
 	alertProcessingRulesClient, err := alertprocessingrules.NewAlertProcessingRulesClientWithBaseURI(o.Environment.ResourceManager)
 	if err != nil {
@@ -82,8 +86,11 @@ func NewClient(o *common.ClientOptions) (*Client, error) {
 	}
 	o.Configure(alertProcessingRulesClient.Client, o.Authorizers.ResourceManager)
 
-	SmartDetectorAlertRulesClient := alertsmanagement.NewSmartDetectorAlertRulesClientWithBaseURI(o.ResourceManagerEndpoint, o.SubscriptionId)
-	o.ConfigureClient(&SmartDetectorAlertRulesClient.Client, o.ResourceManagerAuthorizer)
+	SmartDetectorAlertRulesClient, err := smartdetectoralertrules.NewSmartDetectorAlertRulesClientWithBaseURI(o.Environment.ResourceManager)
+	if err != nil {
+		return nil, fmt.Errorf("building Smart Detector Alert Rules client: %+v", err)
+	}
+	o.Configure(SmartDetectorAlertRulesClient.Client, o.Authorizers.ResourceManager)
 
 	ActionGroupsClient, err := actiongroupsapis.NewActionGroupsAPIsClientWithBaseURI(o.Environment.ResourceManager)
 	if err != nil {
@@ -184,8 +191,8 @@ func NewClient(o *common.ClientOptions) (*Client, error) {
 	return &Client{
 		AADDiagnosticSettingsClient:          aadDiagnosticSettingsClient,
 		AutoscaleSettingsClient:              AutoscaleSettingsClient,
-		ActionRulesClient:                    &ActionRulesClient,
-		SmartDetectorAlertRulesClient:        &SmartDetectorAlertRulesClient,
+		ActionRulesClient:                    ActionRulesClient,
+		SmartDetectorAlertRulesClient:        SmartDetectorAlertRulesClient,
 		ActionGroupsClient:                   ActionGroupsClient,
 		ActivityLogsClient:                   activityLogsClient,
 		ActivityLogAlertsClient:              ActivityLogAlertsClient,

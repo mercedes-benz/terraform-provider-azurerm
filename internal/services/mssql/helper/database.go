@@ -12,7 +12,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2020-06-01/resources" // nolint: staticcheck
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/location"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/sql/2023-02-01-preview/databases"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/sql/2023-08-01-preview/databases"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/mssql/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
@@ -108,11 +108,11 @@ func FindDatabaseReplicationPartners(ctx context.Context, databasesClient *datab
 						}
 
 						if partnerDatabase.Id != nil && partnerDatabase.Properties != nil && partnerDatabase.Properties.PreferredEnclaveType != nil {
-							if primaryEnclaveType == *partnerDatabase.Properties.PreferredEnclaveType {
+							if primaryEnclaveType != "" && primaryEnclaveType == *partnerDatabase.Properties.PreferredEnclaveType {
 								log.Printf("[INFO] Found Partner %s", partnerDatabaseId)
 								partnerDatabases = append(partnerDatabases, *partnerDatabase)
 							} else {
-								log.Printf("[INFO] Mismatch of possible Partner Database based on enclave type (%s vs %s) for %s", string(primaryEnclaveType), string(*partnerDatabase.Properties.PreferredEnclaveType), id)
+								log.Printf("[INFO] Mismatch of possible Partner Database based on enclave type (%q vs %q) for %s", primaryEnclaveType, string(*partnerDatabase.Properties.PreferredEnclaveType), id)
 							}
 						}
 					}

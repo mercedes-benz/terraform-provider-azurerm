@@ -30,7 +30,7 @@ resource "azurerm_cosmosdb_account" "db" {
   offer_type          = "Standard"
   kind                = "MongoDB"
 
-  enable_automatic_failover = true
+  automatic_failover_enabled = true
 
   capabilities {
     name = "EnableAggregationPipeline"
@@ -136,19 +136,21 @@ The following arguments are supported:
 
 * `geo_location` - (Required) Specifies a `geo_location` resource, used to define where data should be replicated with the `failover_priority` 0 specifying the primary location. Value is a `geo_location` block as defined below.
 
-* `ip_range_filter` - (Optional) CosmosDB Firewall Support: This value specifies the set of IP addresses or IP address ranges in CIDR form to be included as the allowed list of client IPs for a given database account. IP addresses/ranges must be comma separated and must not contain any spaces.
+* `ip_range_filter` - (Optional) A set of IP addresses or IP address ranges in CIDR form to be included as the allowed list of client IPs for a given database account. For example `["55.0.1.0/24", "55.0.2.0/24"]`.
 
 ~> **Note:** To enable the "Allow access from the Azure portal" behavior, you should add the IP addresses provided by the [documentation](https://docs.microsoft.com/azure/cosmos-db/how-to-configure-firewall#allow-requests-from-the-azure-portal) to this list.
 
 ~> **Note:** To enable the "Accept connections from within public Azure datacenters" behavior, you should add `0.0.0.0` to the list, see the [documentation](https://docs.microsoft.com/azure/cosmos-db/how-to-configure-firewall#allow-requests-from-global-azure-datacenters-or-other-sources-within-azure) for more details.
 
-* `enable_free_tier` - (Optional) Enable the Free Tier pricing option for this Cosmos DB account. Defaults to `false`. Changing this forces a new resource to be created.
+* `free_tier_enabled` - (Optional) Enable the Free Tier pricing option for this Cosmos DB account. Defaults to `false`. Changing this forces a new resource to be created.
 
 * `analytical_storage_enabled` - (Optional) Enable Analytical Storage option for this Cosmos DB account. Defaults to `false`. Enabling and then disabling analytical storage forces a new resource to be created.
 
-* `enable_automatic_failover` - (Optional) Enable automatic failover for this Cosmos DB account.
+* `automatic_failover_enabled` - (Optional) Enable automatic failover for this Cosmos DB account.
 
 * `partition_merge_enabled` - (Optional) Is partition merge on the Cosmos DB account enabled? Defaults to `false`.
+
+* `burst_capacity_enabled` - (Optional) Enable burst capacity for this Cosmos DB account. Defaults to `false`.
 
 * `public_network_access_enabled` - (Optional) Whether or not public network access is allowed for this CosmosDB account. Defaults to `true`.
 
@@ -164,7 +166,7 @@ The following arguments are supported:
 
 * `virtual_network_rule` - (Optional) Specifies a `virtual_network_rule` block as defined below, used to define which subnets are allowed to access this CosmosDB account.
 
-* `enable_multiple_write_locations` - (Optional) Enable multiple write locations for this Cosmos DB account.
+* `multiple_write_locations_enabled` - (Optional) Enable multiple write locations for this Cosmos DB account.
 
 * `access_key_metadata_writes_enabled` - (Optional) Is write operations on metadata resources (databases, containers, throughput) via account keys enabled? Defaults to `true`.
 
@@ -330,8 +332,6 @@ In addition to the Arguments listed above - the following Attributes are exporte
 * `primary_readonly_key` - The Primary read-only Key for the CosmosDB Account.
 
 * `secondary_readonly_key` - The Secondary read-only key for the CosmosDB Account.
-
-* `connection_strings` - A list of connection strings available for this CosmosDB account.
 
 * `primary_sql_connection_string` - Primary SQL connection string for the CosmosDB Account.
 

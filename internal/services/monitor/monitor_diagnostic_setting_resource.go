@@ -361,6 +361,26 @@ func resourceMonitorDiagnosticSettingCreate(d *pluginsdk.ResourceData, meta inte
 		return fmt.Errorf("creating Monitor Diagnostics Setting %q for Resource %q: %+v", id.DiagnosticSettingName, id.ResourceUri, err)
 	}
 
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return fmt.Errorf("internal error: could not retrieve context deadline for %s", id.ID())
+	}
+
+	// https://github.com/Azure/azure-rest-api-specs/issues/30249
+	log.Printf("[DEBUG] Waiting for Monitor Diagnostic Setting %q for Resource %q to become ready", id.DiagnosticSettingName, id.ResourceUri)
+	stateConf := &pluginsdk.StateChangeConf{
+		Pending:                   []string{"NotFound"},
+		Target:                    []string{"Exists"},
+		Refresh:                   monitorDiagnosticSettingRefreshFunc(ctx, client, id),
+		MinTimeout:                5 * time.Second,
+		ContinuousTargetOccurence: 3,
+		Timeout:                   time.Until(deadline),
+	}
+
+	if _, err = stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("waiting for Monitor Diagnostic Setting %q for Resource %q to become ready: %s", id.DiagnosticSettingName, id.ResourceUri, err)
+	}
+
 	d.SetId(resourceId)
 
 	return resourceMonitorDiagnosticSettingRead(d, meta)
@@ -595,32 +615,37 @@ func resourceMonitorDiagnosticSettingDelete(d *pluginsdk.ResourceData, meta inte
 		}
 	}
 
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return fmt.Errorf("internal error: could not retrieve context deadline for %s", id.ID())
+	}
+
 	// API appears to be eventually consistent (identified during tainting this resource)
 	log.Printf("[DEBUG] Waiting for Monitor Diagnostic Setting %q for Resource %q to disappear", id.DiagnosticSettingName, id.ResourceUri)
 	stateConf := &pluginsdk.StateChangeConf{
 		Pending:                   []string{"Exists"},
 		Target:                    []string{"NotFound"},
-		Refresh:                   monitorDiagnosticSettingDeletedRefreshFunc(ctx, client, *id),
+		Refresh:                   monitorDiagnosticSettingRefreshFunc(ctx, client, *id),
 		MinTimeout:                15 * time.Second,
 		ContinuousTargetOccurence: 5,
-		Timeout:                   d.Timeout(pluginsdk.TimeoutDelete),
+		Timeout:                   time.Until(deadline),
 	}
 
 	if _, err = stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("waiting for Monitor Diagnostic Setting %q for Resource %q to become available: %s", id.DiagnosticSettingName, id.ResourceUri, err)
+		return fmt.Errorf("waiting for Monitor Diagnostic Setting %q for Resource %q to disappear: %s", id.DiagnosticSettingName, id.ResourceUri, err)
 	}
 
 	return nil
 }
 
-func monitorDiagnosticSettingDeletedRefreshFunc(ctx context.Context, client *diagnosticsettings.DiagnosticSettingsClient, targetResourceId diagnosticsettings.ScopedDiagnosticSettingId) pluginsdk.StateRefreshFunc {
+func monitorDiagnosticSettingRefreshFunc(ctx context.Context, client *diagnosticsettings.DiagnosticSettingsClient, targetResourceId diagnosticsettings.ScopedDiagnosticSettingId) pluginsdk.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		res, err := client.Get(ctx, targetResourceId)
 		if err != nil {
 			if response.WasNotFound(res.HttpResponse) {
 				return "NotFound", "NotFound", nil
 			}
-			return nil, "", fmt.Errorf("issuing read request in monitorDiagnosticSettingDeletedRefreshFunc: %s", err)
+			return nil, "", fmt.Errorf("issuing read request in monitorDiagnosticSettingRefreshFunc: %s", err)
 		}
 
 		return res, "Exists", nil
@@ -863,10 +888,8 @@ func ParseMonitorDiagnosticId(monitorId string) (*diagnosticsettings.ScopedDiagn
 		return nil, fmt.Errorf("expected the Monitor Diagnostics ID to be in the format `{resourceId}|{name}` but got %d segments", len(v))
 	}
 
-	identifier := diagnosticsettings.ScopedDiagnosticSettingId{
-		ResourceUri:           v[0],
-		DiagnosticSettingName: v[1],
-	}
+	// TODO: this can become a Composite Resource ID once https://github.com/hashicorp/go-azure-helpers/pull/208 is released
+	identifier := diagnosticsettings.NewScopedDiagnosticSettingID(v[0], v[1])
 	return &identifier, nil
 }
 

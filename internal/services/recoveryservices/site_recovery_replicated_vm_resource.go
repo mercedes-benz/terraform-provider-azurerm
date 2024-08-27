@@ -17,10 +17,10 @@ import (
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/edgezones"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2021-11-01/virtualmachines"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2022-03-01/capacityreservationgroups"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2022-03-01/proximityplacementgroups"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2023-04-02/disks"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2024-03-01/virtualmachines"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/recoveryservicessiterecovery/2022-10-01/replicationfabrics"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/recoveryservicessiterecovery/2022-10-01/replicationpolicies"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/recoveryservicessiterecovery/2022-10-01/replicationprotecteditems"
@@ -156,8 +156,9 @@ func resourceSiteRecoveryReplicatedVM() *pluginsdk.Resource {
 
 			"unmanaged_disk": {
 				Type:       pluginsdk.TypeSet,
-				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				Optional:   true,
+				Computed:   true,
+				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				ForceNew:   true,
 				Elem: &pluginsdk.Resource{
 					Schema: map[string]*pluginsdk.Schema{
@@ -193,8 +194,9 @@ func resourceSiteRecoveryReplicatedVM() *pluginsdk.Resource {
 
 			"managed_disk": {
 				Type:       pluginsdk.TypeSet,
-				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				Optional:   true,
+				Computed:   true,
+				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				ForceNew:   true,
 				Set:        resourceSiteRecoveryReplicatedVMDiskHash,
 				Elem: &pluginsdk.Resource{
@@ -253,8 +255,8 @@ func resourceSiteRecoveryReplicatedVM() *pluginsdk.Resource {
 
 						"target_disk_encryption": {
 							Type:       pluginsdk.TypeList,
-							ConfigMode: pluginsdk.SchemaConfigModeAttr,
 							Optional:   true,
+							ConfigMode: pluginsdk.SchemaConfigModeAttr,
 							MaxItems:   1,
 							Elem:       diskEncryptionResource(),
 						},
@@ -288,9 +290,9 @@ func resourceSiteRecoveryReplicatedVM() *pluginsdk.Resource {
 
 			"network_interface": {
 				Type:       pluginsdk.TypeSet, // use set to avoid diff caused by different orders.
-				ConfigMode: pluginsdk.SchemaConfigModeAttr,
-				Computed:   true,
 				Optional:   true,
+				Computed:   true,
+				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				Elem:       networkInterfaceResource(),
 			},
 		},
@@ -370,9 +372,9 @@ func diskEncryptionResource() *pluginsdk.Resource {
 		Schema: map[string]*pluginsdk.Schema{
 			"disk_encryption_key": {
 				Type:       pluginsdk.TypeList,
-				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				Required:   true,
 				MaxItems:   1,
+				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				Elem: &pluginsdk.Resource{
 					Schema: map[string]*pluginsdk.Schema{
 						"secret_url": {
@@ -389,9 +391,9 @@ func diskEncryptionResource() *pluginsdk.Resource {
 
 			"key_encryption_key": {
 				Type:       pluginsdk.TypeList,
-				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				Optional:   true,
 				MaxItems:   1,
+				ConfigMode: pluginsdk.SchemaConfigModeAttr,
 				Elem: &pluginsdk.Resource{
 					Schema: map[string]*pluginsdk.Schema{
 						"key_url": {

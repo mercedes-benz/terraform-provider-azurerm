@@ -42,7 +42,7 @@ type ApplicationStackWindows struct {
 	NetCoreVersion          string `tfschema:"dotnet_core_version"`
 	NodeVersion             string `tfschema:"node_version"`
 	PhpVersion              string `tfschema:"php_version"`
-	PythonVersion           string `tfschema:"python_version"`
+	PythonVersion           string `tfschema:"python_version,removedInNextMajorVersion"`
 	Python                  bool   `tfschema:"python"`
 	TomcatVersion           string `tfschema:"tomcat_version"`
 
@@ -488,6 +488,7 @@ func linuxApplicationStackSchema() *pluginsdk.Schema {
 					"8.0",
 					"8.1",
 					"8.2",
+					"8.3",
 				}, false),
 				ExactlyOneOf: linuxApplicationStackConstraint,
 			},
@@ -538,6 +539,9 @@ func linuxApplicationStackSchema() *pluginsdk.Schema {
 					"17",
 				}, false),
 				ExactlyOneOf: linuxApplicationStackConstraint,
+				RequiredWith: []string{
+					"site_config.0.application_stack.0.java_server_version", "site_config.0.application_stack.0.java_server",
+				},
 			},
 
 			"java_server": {
@@ -549,7 +553,7 @@ func linuxApplicationStackSchema() *pluginsdk.Schema {
 					"JBOSSEAP",
 				}, false),
 				RequiredWith: []string{
-					"site_config.0.application_stack.0.java_version",
+					"site_config.0.application_stack.0.java_version", "site_config.0.application_stack.0.java_server_version",
 				},
 			},
 
@@ -557,7 +561,7 @@ func linuxApplicationStackSchema() *pluginsdk.Schema {
 				Type:     pluginsdk.TypeString,
 				Optional: true,
 				RequiredWith: []string{
-					"site_config.0.application_stack.0.java_server",
+					"site_config.0.application_stack.0.java_version", "site_config.0.application_stack.0.java_server",
 				},
 			},
 

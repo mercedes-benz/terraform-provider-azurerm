@@ -116,6 +116,8 @@ func resourceHDInsightKafkaCluster() *pluginsdk.Resource {
 
 			"storage_account_gen2": SchemaHDInsightsGen2StorageAccounts(),
 
+			"private_link_configuration": SchemaHDInsightPrivateLinkConfigurations(),
+
 			"compute_isolation": SchemaHDInsightsComputeIsolation(),
 
 			"encryption_in_transit_enabled": {
@@ -138,7 +140,7 @@ func resourceHDInsightKafkaCluster() *pluginsdk.Resource {
 
 						"zookeeper_node": SchemaHDInsightNodeDefinition("roles.0.zookeeper_node", hdInsightKafkaClusterZookeeperNodeDefinition, true),
 
-						"kafka_management_node": SchemaHDInsightNodeDefinition("roles.0.kafka_management_node", hdInsightKafkaClusterKafkaManagementNodeDefinition, false),
+						"kafka_management_node": SchemaHDInsightNodeDefinitionKafka("roles.0.kafka_management_node", hdInsightKafkaClusterKafkaManagementNodeDefinition, false),
 					},
 				},
 			},
@@ -164,12 +166,7 @@ func resourceHDInsightKafkaCluster() *pluginsdk.Resource {
 						},
 					},
 				},
-				RequiredWith: func() []string {
-					if !features.FourPointOh() {
-						return []string{"roles.0.kafka_management_node"}
-					}
-					return []string{}
-				}(),
+				RequiredWith: []string{"roles.0.kafka_management_node"},
 			},
 
 			"tags": commonschema.Tags(),
@@ -195,7 +192,7 @@ func resourceHDInsightKafkaCluster() *pluginsdk.Resource {
 		},
 	}
 
-	if !features.FourPointOh() {
+	if !features.FourPointOhBeta() {
 		resource.Schema["roles"] = &pluginsdk.Schema{
 			Type:     pluginsdk.TypeList,
 			Required: true,
@@ -211,23 +208,9 @@ func resourceHDInsightKafkaCluster() *pluginsdk.Resource {
 					"kafka_management_node": SchemaHDInsightNodeDefinition("roles.0.kafka_management_node", hdInsightKafkaClusterKafkaManagementNodeDefinition, false),
 				},
 			},
-			Deprecated: "`kafka_management_node` will be removed in version 4.0 of the AzureRM Provider since it no longer support configurations from the user",
 		}
-	} else {
-		resource.Schema["roles"] = &pluginsdk.Schema{
-			Type:     pluginsdk.TypeList,
-			Required: true,
-			MaxItems: 1,
-			Elem: &pluginsdk.Resource{
-				Schema: map[string]*pluginsdk.Schema{
-					"head_node": SchemaHDInsightNodeDefinition("roles.0.head_node", hdInsightKafkaClusterHeadNodeDefinition, true),
 
-					"worker_node": SchemaHDInsightNodeDefinition("roles.0.worker_node", hdInsightKafkaClusterWorkerNodeDefinition, true),
-
-					"zookeeper_node": SchemaHDInsightNodeDefinition("roles.0.zookeeper_node", hdInsightKafkaClusterZookeeperNodeDefinition, true),
-				},
-			},
-		}
+		resource.Schema["roles"].Elem.(*pluginsdk.Resource).Schema["kafka_management_node"].Elem.(*pluginsdk.Resource).Schema["username"].Deprecated = "`username` will become Computed only in version 4.0 of the AzureRM Provider as the service auto-generates a value for this property"
 	}
 
 	return resource
@@ -270,6 +253,9 @@ func resourceHDInsightKafkaClusterCreate(d *pluginsdk.ResourceData, meta interfa
 	networkPropertiesRaw := d.Get("network").([]interface{})
 	networkProperties := ExpandHDInsightsNetwork(networkPropertiesRaw)
 
+	privateLinkConfigurationsRaw := d.Get("private_link_configuration").([]interface{})
+	privateLinkConfigurations := ExpandHDInsightPrivateLinkConfigurations(privateLinkConfigurationsRaw)
+
 	kafkaRoles := hdInsightRoleDefinition{
 		HeadNodeDef:            hdInsightKafkaClusterHeadNodeDefinition,
 		WorkerNodeDef:          hdInsightKafkaClusterWorkerNodeDefinition,
@@ -301,11 +287,12 @@ func resourceHDInsightKafkaClusterCreate(d *pluginsdk.ResourceData, meta interfa
 	payload := clusters.ClusterCreateParametersExtended{
 		Location: utils.String(location),
 		Properties: &clusters.ClusterCreateProperties{
-			Tier:                   pointer.To(tier),
-			OsType:                 pointer.To(clusters.OSTypeLinux),
-			ClusterVersion:         utils.String(clusterVersion),
-			MinSupportedTlsVersion: utils.String(tls),
-			NetworkProperties:      networkProperties,
+			Tier:                      pointer.To(tier),
+			OsType:                    pointer.To(clusters.OSTypeLinux),
+			ClusterVersion:            utils.String(clusterVersion),
+			MinSupportedTlsVersion:    utils.String(tls),
+			NetworkProperties:         networkProperties,
+			PrivateLinkConfigurations: privateLinkConfigurations,
 			ClusterDefinition: &clusters.ClusterDefinition{
 				Kind:             pointer.To(clusters.ClusterKindKafka),
 				ComponentVersion: pointer.To(componentVersions),
@@ -471,6 +458,9 @@ func resourceHDInsightKafkaClusterRead(d *pluginsdk.ResourceData, meta interface
 
 			if err := d.Set("network", flattenHDInsightsNetwork(props.NetworkProperties)); err != nil {
 				return fmt.Errorf("flatten `network`: %+v", err)
+			}
+			if err := d.Set("private_link_configuration", flattenHDInsightPrivateLinkConfigurations(props.PrivateLinkConfigurations)); err != nil {
+				return fmt.Errorf("flattening `private_link_configuration`: %+v", err)
 			}
 			if err := d.Set("compute_isolation", flattenHDInsightComputeIsolationProperties(props.ComputeIsolationProperties)); err != nil {
 				return fmt.Errorf("failed setting `compute_isolation`: %+v", err)

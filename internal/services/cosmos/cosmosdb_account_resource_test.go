@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/hashicorp/go-azure-sdk/resource-manager/cosmosdb/2023-04-15/cosmosdb"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/cosmosdb/2024-05-15/cosmosdb"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/azure"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
@@ -837,7 +837,7 @@ func TestAccCosmosDBAccount_freeTier(t *testing.T) {
 			Config: r.freeTier(data, "GlobalDocumentDB", cosmosdb.DefaultConsistencyLevelEventual),
 			Check: acceptance.ComposeAggregateTestCheckFunc(
 				checkAccCosmosDBAccount_basic(data, cosmosdb.DefaultConsistencyLevelEventual, 1),
-				check.That(data.ResourceName).Key("enable_free_tier").HasValue("true"),
+				check.That(data.ResourceName).Key("free_tier_enabled").HasValue("true"),
 			),
 		},
 		data.ImportStep(),
@@ -960,7 +960,7 @@ func TestAccCosmosDBAccount_vNetFilters(t *testing.T) {
 	})
 }
 
-// todo remove for 4.0
+// TODO 4.0 remove post 4.0
 func TestAccCosmosDBAccount_vNetFiltersThreePointOh(t *testing.T) {
 	if features.FourPointOhBeta() {
 		t.Skip("this test requires 3.0 mode")
@@ -1293,6 +1293,30 @@ func TestAccCosmosDBAccount_localAuthenticationDisabled(t *testing.T) {
 	})
 }
 
+func TestAccCosmosDBAccount_updateBurstCapacity(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_cosmosdb_account", "test")
+	r := CosmosDBAccountResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.basic(data, cosmosdb.DatabaseAccountKindGlobalDocumentDB, cosmosdb.DefaultConsistencyLevelEventual),
+			Check: acceptance.ComposeAggregateTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("burst_capacity_enabled").HasValue("false"),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicWithBurstCapacityEnabled(data, cosmosdb.DatabaseAccountKindGlobalDocumentDB, cosmosdb.DefaultConsistencyLevelEventual),
+			Check: acceptance.ComposeAggregateTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("burst_capacity_enabled").HasValue("true"),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
 func TestAccCosmosDBAccount_defaultCreateMode(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_cosmosdb_account", "test")
 	r := CosmosDBAccountResource{}
@@ -1354,7 +1378,7 @@ func TestAccCosmosDBAccount_gremlinDatabasesToRestore(t *testing.T) {
 	})
 }
 
-// todo remove for 4.0
+// TODO 4.0 remove post 4.0
 func TestAccCosmosDBAccount_ipRangeFiltersThreePointOh(t *testing.T) {
 	if features.FourPointOhBeta() {
 		t.Skip("this test requires 3.0 mode")
@@ -1381,6 +1405,55 @@ func TestAccCosmosDBAccount_ipRangeFiltersThreePointOh(t *testing.T) {
 			Config: r.vNetFiltersThreePointOh(data),
 			Check: acceptance.ComposeAggregateTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccCosmosDBAccount_supersededProperties(t *testing.T) {
+	if features.FourPointOhBeta() {
+		t.Skip("this test contains deprecated properties and can be removed post 4.0")
+	}
+
+	data := acceptance.BuildTestData(t, "azurerm_cosmosdb_account", "test")
+	// Limited regional availability
+	data.Locations.Primary = "westeurope"
+	data.Locations.Secondary = "northeurope"
+	r := CosmosDBAccountResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.basicMongoDB(data, cosmosdb.DefaultConsistencyLevelEventual),
+			Check: acceptance.ComposeAggregateTestCheckFunc(
+				checkAccCosmosDBAccount_basic(data, cosmosdb.DefaultConsistencyLevelEventual, 1),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.supersededProperties(data, cosmosdb.DefaultConsistencyLevelEventual),
+			Check: acceptance.ComposeAggregateTestCheckFunc(
+				checkAccCosmosDBAccount_basic(data, cosmosdb.DefaultConsistencyLevelEventual, 2),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccCosmosDBAccount_supersededFreeTier(t *testing.T) {
+	if features.FourPointOhBeta() {
+		t.Skip("this test contains deprecated properties and can be removed post 4.0")
+	}
+
+	data := acceptance.BuildTestData(t, "azurerm_cosmosdb_account", "test")
+	r := CosmosDBAccountResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.supersededFreeTier(data, "GlobalDocumentDB", cosmosdb.DefaultConsistencyLevelEventual),
+			Check: acceptance.ComposeAggregateTestCheckFunc(
+				checkAccCosmosDBAccount_basic(data, cosmosdb.DefaultConsistencyLevelEventual, 1),
+				check.That(data.ResourceName).Key("enable_free_tier").HasValue("true"),
 			),
 		},
 		data.ImportStep(),
@@ -1695,7 +1768,7 @@ resource "azurerm_cosmosdb_account" "test" {
     id = azurerm_subnet.subnet2.id
   }
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   geo_location {
     location          = azurerm_resource_group.test.location
@@ -1753,7 +1826,7 @@ resource "azurerm_cosmosdb_account" "test" {
     id = azurerm_subnet.subnet2.id
   }
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   geo_location {
     location          = azurerm_resource_group.test.location
@@ -1818,7 +1891,7 @@ resource "azurerm_cosmosdb_account" "test" {
     id = azurerm_subnet.subnet2.id
   }
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   geo_location {
     location          = azurerm_resource_group.test.location
@@ -1867,7 +1940,7 @@ resource "azurerm_cosmosdb_account" "test" {
   offer_type          = "Standard"
   kind                = "%s"
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   consistency_policy {
     consistency_level       = "BoundedStaleness"
@@ -1911,7 +1984,7 @@ resource "azurerm_cosmosdb_account" "test" {
     name = "EnableMongo"
   }
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   consistency_policy {
     consistency_level       = "BoundedStaleness"
@@ -1972,7 +2045,7 @@ resource "azurerm_cosmosdb_account" "test" {
     id = azurerm_subnet.subnet2.id
   }
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   geo_location {
     location          = azurerm_resource_group.test.location
@@ -2037,7 +2110,7 @@ resource "azurerm_cosmosdb_account" "test" {
     id = azurerm_subnet.subnet2.id
   }
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   geo_location {
     location          = azurerm_resource_group.test.location
@@ -2114,7 +2187,7 @@ resource "azurerm_cosmosdb_account" "test" {
     id = azurerm_subnet.subnet2.id
   }
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   geo_location {
     location          = azurerm_resource_group.test.location
@@ -2186,7 +2259,7 @@ resource "azurerm_cosmosdb_account" "test" {
     id = azurerm_subnet.subnet2.id
   }
 
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
 
   geo_location {
     location          = azurerm_resource_group.test.location
@@ -2407,8 +2480,8 @@ resource "azurerm_cosmosdb_account" "test" {
     name = "EnableMongo"
   }
 
-  enable_multiple_write_locations = true
-  enable_automatic_failover       = true
+  multiple_write_locations_enabled = true
+  automatic_failover_enabled       = true
 
   consistency_policy {
     consistency_level = "%s"
@@ -2446,22 +2519,22 @@ resource "azurerm_virtual_network" "test" {
 }
 
 resource "azurerm_subnet" "subnet1" {
-  name                                           = "acctest-SN1-%[1]d-1"
-  resource_group_name                            = azurerm_resource_group.test.name
-  virtual_network_name                           = azurerm_virtual_network.test.name
-  address_prefixes                               = ["10.0.1.0/24"]
-  enforce_private_link_endpoint_network_policies = false
-  enforce_private_link_service_network_policies  = false
+  name                                          = "acctest-SN1-%[1]d-1"
+  resource_group_name                           = azurerm_resource_group.test.name
+  virtual_network_name                          = azurerm_virtual_network.test.name
+  address_prefixes                              = ["10.0.1.0/24"]
+  private_endpoint_network_policies             = "Disabled"
+  private_link_service_network_policies_enabled = false
 }
 
 resource "azurerm_subnet" "subnet2" {
-  name                                           = "acctest-SN2-%[1]d-2"
-  resource_group_name                            = azurerm_resource_group.test.name
-  virtual_network_name                           = azurerm_virtual_network.test.name
-  address_prefixes                               = ["10.0.2.0/24"]
-  service_endpoints                              = ["Microsoft.AzureCosmosDB"]
-  enforce_private_link_endpoint_network_policies = false
-  enforce_private_link_service_network_policies  = false
+  name                                          = "acctest-SN2-%[1]d-2"
+  resource_group_name                           = azurerm_resource_group.test.name
+  virtual_network_name                          = azurerm_virtual_network.test.name
+  address_prefixes                              = ["10.0.2.0/24"]
+  service_endpoints                             = ["Microsoft.AzureCosmosDB"]
+  private_endpoint_network_policies             = "Disabled"
+  private_link_service_network_policies_enabled = false
 }
 `, data.RandomInteger, data.Locations.Primary)
 }
@@ -2477,8 +2550,8 @@ resource "azurerm_cosmosdb_account" "test" {
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
 
-  enable_multiple_write_locations = false
-  enable_automatic_failover       = false
+  multiple_write_locations_enabled = false
+  automatic_failover_enabled       = false
 
   consistency_policy {
     consistency_level       = "Eventual"
@@ -2518,8 +2591,8 @@ resource "azurerm_cosmosdb_account" "test" {
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
 
-  enable_multiple_write_locations = false
-  enable_automatic_failover       = false
+  multiple_write_locations_enabled = false
+  automatic_failover_enabled       = false
 
   consistency_policy {
     consistency_level       = "Eventual"
@@ -2566,7 +2639,7 @@ resource "azurerm_cosmosdb_account" "test" {
   offer_type          = "Standard"
   kind                = "%s"
 
-  enable_free_tier = true
+  free_tier_enabled = true
 
   consistency_policy {
     consistency_level = "%s"
@@ -3382,6 +3455,8 @@ resource "azurerm_cosmosdb_account" "test" {
     type         = "UserAssigned"
     identity_ids = [%[4]s]
   }
+
+  depends_on = [azurerm_user_assigned_identity.test, azurerm_user_assigned_identity.test2]
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, identityResource)
 }
@@ -3430,6 +3505,8 @@ resource "azurerm_cosmosdb_account" "test" {
     location          = azurerm_resource_group.test.location
     failover_priority = 0
   }
+
+  depends_on = [azurerm_user_assigned_identity.test, azurerm_user_assigned_identity.test2]
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
 }
@@ -3732,12 +3809,6 @@ resource "azurerm_cosmosdb_account" "test" {
     location          = azurerm_resource_group.test.location
     failover_priority = 0
   }
-
-  lifecycle {
-    ignore_changes = [
-      capabilities
-    ]
-  }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(consistency))
 }
@@ -3808,13 +3879,6 @@ resource "azurerm_cosmosdb_account" "test" {
     location          = azurerm_resource_group.test.location
     failover_priority = 0
   }
-
-  lifecycle {
-    ignore_changes = [
-      capabilities
-    ]
-  }
-
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(consistency))
 }
@@ -3862,10 +3926,6 @@ resource "azurerm_cosmosdb_account" "test" {
     name = "EnableTtlOnCustomPath"
   }
 
-  capabilities {
-    name = "EnablePartialUniqueIndex"
-  }
-
   consistency_policy {
     consistency_level = "%s"
   }
@@ -3873,12 +3933,6 @@ resource "azurerm_cosmosdb_account" "test" {
   geo_location {
     location          = azurerm_resource_group.test.location
     failover_priority = 0
-  }
-
-  lifecycle {
-    ignore_changes = [
-      capabilities
-    ]
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(consistency))
@@ -3915,12 +3969,6 @@ resource "azurerm_cosmosdb_account" "test" {
     location          = azurerm_resource_group.test.location
     failover_priority = 0
   }
-
-  lifecycle {
-    ignore_changes = [
-      capabilities
-    ]
-  }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(consistency))
 }
@@ -3953,6 +4001,38 @@ resource "azurerm_cosmosdb_account" "test" {
   }
 
   local_authentication_disabled = true
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(kind), string(consistency))
+}
+
+func (CosmosDBAccountResource) basicWithBurstCapacityEnabled(data acceptance.TestData, kind cosmosdb.DatabaseAccountKind, consistency cosmosdb.DefaultConsistencyLevel) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-cosmos-%d"
+  location = "%s"
+}
+
+resource "azurerm_cosmosdb_account" "test" {
+  name                = "acctest-ca-%d"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  offer_type          = "Standard"
+  kind                = "%s"
+
+  consistency_policy {
+    consistency_level = "%s"
+  }
+
+  geo_location {
+    location          = azurerm_resource_group.test.location
+    failover_priority = 0
+  }
+
+  burst_capacity_enabled = true
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(kind), string(consistency))
 }
@@ -4509,8 +4589,8 @@ resource "azurerm_cosmosdb_account" "test" {
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
 
-  enable_multiple_write_locations = false
-  enable_automatic_failover       = false
+  multiple_write_locations_enabled = false
+  automatic_failover_enabled       = false
 
   consistency_policy {
     consistency_level       = "Eventual"
@@ -4550,8 +4630,8 @@ resource "azurerm_cosmosdb_account" "test" {
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
 
-  enable_multiple_write_locations = false
-  enable_automatic_failover       = false
+  multiple_write_locations_enabled = false
+  automatic_failover_enabled       = false
 
   consistency_policy {
     consistency_level       = "Eventual"
@@ -4591,8 +4671,8 @@ resource "azurerm_cosmosdb_account" "test" {
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
 
-  enable_multiple_write_locations = false
-  enable_automatic_failover       = false
+  multiple_write_locations_enabled = false
+  automatic_failover_enabled       = false
 
   consistency_policy {
     consistency_level       = "Eventual"
@@ -4632,8 +4712,8 @@ resource "azurerm_cosmosdb_account" "test" {
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
 
-  enable_multiple_write_locations = false
-  enable_automatic_failover       = false
+  multiple_write_locations_enabled = false
+  automatic_failover_enabled       = false
 
   consistency_policy {
     consistency_level       = "Eventual"
@@ -4733,7 +4813,7 @@ resource "azurerm_cosmosdb_account" "test" {
   virtual_network_rule {
     id = azurerm_subnet.subnet2.id
   }
-  enable_multiple_write_locations = true
+  multiple_write_locations_enabled = true
   geo_location {
     location          = azurerm_resource_group.test.location
     failover_priority = 0
@@ -4756,4 +4836,97 @@ resource "azurerm_cosmosdb_account" "test" {
   network_acl_bypass_for_azure_services = true
 }
 `, r.completePreReqs(data), data.RandomInteger, string(kind), string(consistency), data.Locations.Secondary, data.Locations.Ternary)
+}
+
+func (CosmosDBAccountResource) supersededProperties(data acceptance.TestData, consistency cosmosdb.DefaultConsistencyLevel) string {
+	return fmt.Sprintf(`
+variable "geo_location" {
+  type = list(object({
+    location          = string
+    failover_priority = string
+    zone_redundant    = bool
+  }))
+  default = [
+    {
+      location          = "%s"
+      failover_priority = 0
+      zone_redundant    = false
+    },
+    {
+      location          = "%s"
+      failover_priority = 1
+      zone_redundant    = true
+    }
+  ]
+}
+
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-cosmos-%d"
+  location = "%s"
+}
+
+resource "azurerm_cosmosdb_account" "test" {
+  name                = "acctest-ca-%d"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  offer_type          = "Standard"
+  kind                = "MongoDB"
+
+  capabilities {
+    name = "EnableMongo"
+  }
+
+  enable_multiple_write_locations = true
+  enable_automatic_failover       = true
+
+  consistency_policy {
+    consistency_level = "%s"
+  }
+
+  dynamic "geo_location" {
+    for_each = var.geo_location
+    content {
+      location          = geo_location.value.location
+      failover_priority = geo_location.value.failover_priority
+      zone_redundant    = geo_location.value.zone_redundant
+    }
+  }
+}
+`, data.Locations.Primary, data.Locations.Secondary, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(consistency))
+}
+
+func (CosmosDBAccountResource) supersededFreeTier(data acceptance.TestData, kind cosmosdb.DatabaseAccountKind, consistency cosmosdb.DefaultConsistencyLevel) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-cosmos-%d"
+  location = "%s"
+}
+
+resource "azurerm_cosmosdb_account" "test" {
+  name                = "acctest-ca-%d"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  offer_type          = "Standard"
+  kind                = "%s"
+
+  enable_free_tier = true
+
+  consistency_policy {
+    consistency_level = "%s"
+  }
+
+  geo_location {
+    location          = azurerm_resource_group.test.location
+    failover_priority = 0
+  }
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(kind), string(consistency))
 }

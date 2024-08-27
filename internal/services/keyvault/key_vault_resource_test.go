@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
+	"github.com/hashicorp/terraform-provider-azurerm/internal/features"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
@@ -203,6 +204,10 @@ func TestAccKeyVault_upgradeSKU(t *testing.T) {
 }
 
 func TestAccKeyVault_updateContacts(t *testing.T) {
+	if features.FourPointOhBeta() {
+		t.Skipf("Skippped as deprecated property removed in 4.0")
+	}
+
 	data := acceptance.BuildTestData(t, "azurerm_key_vault", "test")
 	r := KeyVaultResource{}
 
@@ -422,29 +427,6 @@ func TestAccKeyVault_purgeProtectionAttemptToDisable(t *testing.T) {
 			Config:      r.purgeProtection(data, false),
 			ExpectError: regexp.MustCompile("once Purge Protection has been Enabled it's not possible to disable it"),
 		},
-	})
-}
-
-func TestAccKeyVault_deletePolicy(t *testing.T) {
-	data := acceptance.BuildTestData(t, "azurerm_key_vault", "test")
-	r := KeyVaultResource{}
-
-	data.ResourceTest(t, r, []acceptance.TestStep{
-		{
-			Config: r.basic(data),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).ExistsInAzure(r),
-			),
-		},
-		data.ImportStep(),
-		{
-			Config: r.noPolicy(data),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("access_policy.#").HasValue("0"),
-			),
-		},
-		data.ImportStep(),
 	})
 }
 
@@ -1132,33 +1114,7 @@ resource "azurerm_key_vault" "test" {
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
 }
 
-func (KeyVaultResource) noPolicy(data acceptance.TestData) string {
-	return fmt.Sprintf(`
-provider "azurerm" {
-  features {}
-}
-
-data "azurerm_client_config" "current" {
-}
-
-resource "azurerm_resource_group" "test" {
-  name     = "acctestRG-%d"
-  location = "%s"
-}
-
-resource "azurerm_key_vault" "test" {
-  name                       = "vault%d"
-  location                   = azurerm_resource_group.test.location
-  resource_group_name        = azurerm_resource_group.test.name
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  sku_name                   = "standard"
-  soft_delete_retention_days = 7
-
-  access_policy = []
-}
-`, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
-}
-
+// TODO: Remove in 4.0
 func (KeyVaultResource) updateContacts(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 provider "azurerm" {

@@ -62,10 +62,12 @@ func resourceArmRoleAssignment() *pluginsdk.Resource {
 				Required: true,
 				ForceNew: true,
 				ValidateFunc: validation.Any(
-					// Elevated access for a global admin is needed to assign roles in this scope:
+					// Elevated access (aka User Access Administrator role) is needed to assign roles in the following scopes:
 					// https://docs.microsoft.com/en-us/azure/role-based-access-control/elevate-access-global-admin#azure-cli
-					// It seems only user account is allowed to be elevated access.
+					validation.StringMatch(regexp.MustCompile("/"), "Root scope (/) is invalid"),
 					validation.StringMatch(regexp.MustCompile("/providers/Microsoft.Subscription.*"), "Subscription scope is invalid"),
+					validation.StringMatch(regexp.MustCompile("/providers/Microsoft.Capacity"), "Capacity scope is invalid"),
+					validation.StringMatch(regexp.MustCompile("/providers/Microsoft.BillingBenefits"), "BillingBenefits scope is invalid"),
 
 					billingValidate.EnrollmentID,
 					commonids.ValidateManagementGroupID,
@@ -253,7 +255,11 @@ func resourceArmRoleAssignmentCreate(d *pluginsdk.ResourceData, meta interface{}
 		properties.RoleAssignmentProperties.PrincipalType = authorization.PrincipalType(principalType)
 	}
 
-	if err := pluginsdk.Retry(d.Timeout(pluginsdk.TimeoutCreate), retryRoleAssignmentsClient(d, scope, name, properties, meta, tenantId)); err != nil {
+	// LinkedAuthorizationFailed may occur in cross tenant setup because of replication lag.
+	// Let's retry this error for cross tenant setup and when we are skipping principal check.
+	retryLinkedAuthorizationFailedError := len(delegatedManagedIdentityResourceID) > 0 && skipPrincipalCheck
+
+	if err := pluginsdk.Retry(d.Timeout(pluginsdk.TimeoutCreate), retryRoleAssignmentsClient(d, scope, name, properties, meta, tenantId, retryLinkedAuthorizationFailedError)); err != nil {
 		return err
 	}
 
@@ -348,7 +354,7 @@ func resourceArmRoleAssignmentDelete(d *pluginsdk.ResourceData, meta interface{}
 	return nil
 }
 
-func retryRoleAssignmentsClient(d *pluginsdk.ResourceData, scope string, name string, properties authorization.RoleAssignmentCreateParameters, meta interface{}, tenantId string) func() *pluginsdk.RetryError {
+func retryRoleAssignmentsClient(d *pluginsdk.ResourceData, scope string, name string, properties authorization.RoleAssignmentCreateParameters, meta interface{}, tenantId string, retryLinkedAuthorizationFailedError bool) func() *pluginsdk.RetryError {
 	return func() *pluginsdk.RetryError {
 		roleAssignmentsClient := meta.(*clients.Client).Authorization.RoleAssignmentsClient
 		ctx, cancel := timeouts.ForCreate(meta.(*clients.Client).StopContext, d)
@@ -356,14 +362,17 @@ func retryRoleAssignmentsClient(d *pluginsdk.ResourceData, scope string, name st
 
 		resp, err := roleAssignmentsClient.Create(ctx, scope, name, properties)
 		if err != nil {
-			if utils.ResponseErrorIsRetryable(err) {
+			switch {
+			case utils.ResponseErrorIsRetryable(err):
 				return pluginsdk.RetryableError(err)
-			} else if utils.ResponseWasStatusCode(resp.Response, 400) && strings.Contains(err.Error(), "PrincipalNotFound") {
+			case utils.ResponseWasStatusCode(resp.Response, 400) && strings.Contains(err.Error(), "PrincipalNotFound"):
 				// When waiting for service principal to become available
 				return pluginsdk.RetryableError(err)
+			case retryLinkedAuthorizationFailedError && utils.ResponseWasForbidden(resp.Response) && strings.Contains(err.Error(), "LinkedAuthorizationFailed"):
+				return pluginsdk.RetryableError(err)
+			default:
+				return pluginsdk.NonRetryableError(err)
 			}
-
-			return pluginsdk.NonRetryableError(err)
 		}
 
 		if resp.ID == nil {

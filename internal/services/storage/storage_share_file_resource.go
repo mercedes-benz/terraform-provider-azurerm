@@ -107,9 +107,10 @@ func resourceStorageShareFile() *pluginsdk.Resource {
 }
 
 func resourceStorageShareFileCreate(d *pluginsdk.ResourceData, meta interface{}) error {
+	storageClient := meta.(*clients.Client).Storage
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	ctx, cancel := timeouts.ForCreate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
-	storageClient := meta.(*clients.Client).Storage
 
 	storageShareId, err := shares.ParseShareID(d.Get("storage_share_id").(string), storageClient.StorageDomainSuffix)
 	if err != nil {
@@ -119,7 +120,7 @@ func resourceStorageShareFileCreate(d *pluginsdk.ResourceData, meta interface{})
 	fileName := d.Get("name").(string)
 	path := d.Get("path").(string)
 
-	account, err := storageClient.FindAccount(ctx, storageShareId.AccountId.AccountName)
+	account, err := storageClient.FindAccount(ctx, subscriptionId, storageShareId.AccountId.AccountName)
 	if err != nil {
 		return fmt.Errorf("retrieving Account %q for File %q (Share %q): %v", storageShareId.AccountId.AccountName, fileName, storageShareId.ShareName, err)
 	}
@@ -158,7 +159,12 @@ func resourceStorageShareFileCreate(d *pluginsdk.ResourceData, meta interface{})
 	}
 
 	if v, ok := d.GetOk("content_md5"); ok {
-		input.ContentMD5 = utils.String(v.(string))
+		// Azure uses a Base64 encoded representation of the standard MD5 sum of the file
+		contentMD5, err := convertHexToBase64Encoding(v.(string))
+		if err != nil {
+			return fmt.Errorf("failed to hex decode then base64 encode `content_md5` value: %s", err)
+		}
+		input.ContentMD5 = &contentMD5
 	}
 
 	var file *os.File
@@ -196,16 +202,17 @@ func resourceStorageShareFileCreate(d *pluginsdk.ResourceData, meta interface{})
 }
 
 func resourceStorageShareFileUpdate(d *pluginsdk.ResourceData, meta interface{}) error {
+	storageClient := meta.(*clients.Client).Storage
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	ctx, cancel := timeouts.ForUpdate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
-	storageClient := meta.(*clients.Client).Storage
 
 	id, err := files.ParseFileID(d.Id(), storageClient.StorageDomainSuffix)
 	if err != nil {
 		return err
 	}
 
-	account, err := storageClient.FindAccount(ctx, id.AccountId.AccountName)
+	account, err := storageClient.FindAccount(ctx, subscriptionId, id.AccountId.AccountName)
 	if err != nil {
 		return fmt.Errorf("retrieving Account %q for %s: %v", id.AccountId.AccountName, id, err)
 	}
@@ -235,7 +242,12 @@ func resourceStorageShareFileUpdate(d *pluginsdk.ResourceData, meta interface{})
 		}
 
 		if v, ok := d.GetOk("content_md5"); ok {
-			input.ContentMD5 = utils.String(v.(string))
+			// Azure uses a Base64 encoded representation of the standard MD5 sum of the file
+			contentMD5, err := convertHexToBase64Encoding(v.(string))
+			if err != nil {
+				return fmt.Errorf("failed to hex decode then base64 encode `content_md5` value: %s", err)
+			}
+			input.ContentMD5 = &contentMD5
 		}
 
 		if _, err = client.SetProperties(ctx, id.ShareName, id.DirectoryPath, id.FileName, input); err != nil {
@@ -247,16 +259,17 @@ func resourceStorageShareFileUpdate(d *pluginsdk.ResourceData, meta interface{})
 }
 
 func resourceStorageShareFileRead(d *pluginsdk.ResourceData, meta interface{}) error {
+	storageClient := meta.(*clients.Client).Storage
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
 	defer cancel()
-	storageClient := meta.(*clients.Client).Storage
 
 	id, err := files.ParseFileID(d.Id(), storageClient.StorageDomainSuffix)
 	if err != nil {
 		return err
 	}
 
-	account, err := storageClient.FindAccount(ctx, id.AccountId.AccountName)
+	account, err := storageClient.FindAccount(ctx, subscriptionId, id.AccountId.AccountName)
 	if err != nil {
 		return fmt.Errorf("retrieving Account %q for File %q (Share %q): %s", id.AccountId.AccountName, id.FileName, id.ShareName, err)
 	}
@@ -287,7 +300,17 @@ func resourceStorageShareFileRead(d *pluginsdk.ResourceData, meta interface{}) e
 	}
 	d.Set("content_type", props.ContentType)
 	d.Set("content_encoding", props.ContentEncoding)
-	d.Set("content_md5", props.ContentMD5)
+
+	// Set the ContentMD5 value to md5 hash in hex
+	contentMD5 := ""
+	if props.ContentMD5 != "" {
+		contentMD5, err = convertBase64ToHexEncoding(props.ContentMD5)
+		if err != nil {
+			return fmt.Errorf("converting hex to base64 encoding for content_md5: %v", err)
+		}
+	}
+	d.Set("content_md5", contentMD5)
+
 	d.Set("content_disposition", props.ContentDisposition)
 
 	if props.ContentLength == nil {
@@ -300,16 +323,17 @@ func resourceStorageShareFileRead(d *pluginsdk.ResourceData, meta interface{}) e
 }
 
 func resourceStorageShareFileDelete(d *pluginsdk.ResourceData, meta interface{}) error {
+	storageClient := meta.(*clients.Client).Storage
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
 	defer cancel()
-	storageClient := meta.(*clients.Client).Storage
 
 	id, err := files.ParseFileID(d.Id(), storageClient.StorageDomainSuffix)
 	if err != nil {
 		return err
 	}
 
-	account, err := storageClient.FindAccount(ctx, id.AccountId.AccountName)
+	account, err := storageClient.FindAccount(ctx, subscriptionId, id.AccountId.AccountName)
 	if err != nil {
 		return fmt.Errorf("retrieving Account %q for File %q (Share %q): %v", id.AccountId.AccountName, id.FileName, id.ShareName, err)
 	}
@@ -319,7 +343,7 @@ func resourceStorageShareFileDelete(d *pluginsdk.ResourceData, meta interface{})
 
 	client, err := storageClient.FileShareFilesDataPlaneClient(ctx, *account, storageClient.DataPlaneOperationSupportingAnyAuthMethod())
 	if err != nil {
-		return fmt.Errorf("building File Share File Client for Storage Account %q (Resource Group %q): %v", id.AccountId.AccountName, account.ResourceGroup, err)
+		return fmt.Errorf("building File Share File Client for %s: %v", account.StorageAccountId, err)
 	}
 
 	if _, err = client.Delete(ctx, id.ShareName, id.DirectoryPath, id.FileName); err != nil {

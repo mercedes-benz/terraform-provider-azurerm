@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-azure-helpers/lang/response"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
+	"github.com/hashicorp/terraform-provider-azurerm/internal/features"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/client"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/helpers"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/validate"
@@ -27,7 +28,7 @@ import (
 )
 
 func resourceStorageShareDirectory() *pluginsdk.Resource {
-	return &pluginsdk.Resource{
+	resource := &pluginsdk.Resource{
 		Create: resourceStorageShareDirectoryCreate,
 		Read:   resourceStorageShareDirectoryRead,
 		Update: resourceStorageShareDirectoryUpdate,
@@ -54,45 +55,53 @@ func resourceStorageShareDirectory() *pluginsdk.Resource {
 			},
 
 			"storage_share_id": {
-				Type:          pluginsdk.TypeString,
-				Optional:      true, // TODO: make required and forcenew in v4.0
-				Computed:      true, // TODO: remove computed in v4.0
-				ForceNew:      true,
-				ConflictsWith: []string{"share_name", "storage_account_name"},
-				ValidateFunc:  storageValidate.StorageShareDataPlaneID,
-			},
-
-			"share_name": {
-				Type:          pluginsdk.TypeString,
-				Optional:      true,
-				Computed:      true,
-				ForceNew:      true,
-				Deprecated:    "the `share_name` and `storage_account_name` properties have been superseded by the `storage_share_id` property and will be removed in version 4.0 of the AzureRM provider",
-				ConflictsWith: []string{"storage_share_id"},
-				RequiredWith:  []string{"storage_account_name"},
-				ValidateFunc:  validation.StringIsNotEmpty,
-			},
-
-			"storage_account_name": {
-				Type:          pluginsdk.TypeString,
-				Optional:      true,
-				Computed:      true,
-				ForceNew:      true,
-				Deprecated:    "the `share_name` and `storage_account_name` properties have been superseded by the `storage_share_id` property and will be removed in version 4.0 of the AzureRM provider",
-				ConflictsWith: []string{"storage_share_id"},
-				RequiredWith:  []string{"share_name"},
-				ValidateFunc:  validation.StringIsNotEmpty,
+				Type:         pluginsdk.TypeString,
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: storageValidate.StorageShareDataPlaneID,
 			},
 
 			"metadata": MetaDataSchema(),
 		},
 	}
+
+	if !features.FourPointOhBeta() {
+		resource.Schema["storage_share_id"].Required = false
+		resource.Schema["storage_share_id"].Optional = true
+		resource.Schema["storage_share_id"].Computed = true
+		resource.Schema["storage_share_id"].ConflictsWith = []string{"share_name", "storage_account_name"}
+
+		resource.Schema["storage_account_name"] = &pluginsdk.Schema{
+			Type:          pluginsdk.TypeString,
+			Optional:      true,
+			Computed:      true,
+			ForceNew:      true,
+			Deprecated:    "the `share_name` and `storage_account_name` properties have been superseded by the `storage_share_id` property and will be removed in version 4.0 of the AzureRM provider",
+			ConflictsWith: []string{"storage_share_id"},
+			RequiredWith:  []string{"share_name"},
+			ValidateFunc:  validation.StringIsNotEmpty,
+		}
+
+		resource.Schema["share_name"] = &pluginsdk.Schema{
+			Type:          pluginsdk.TypeString,
+			Optional:      true,
+			Computed:      true,
+			ForceNew:      true,
+			Deprecated:    "the `share_name` and `storage_account_name` properties have been superseded by the `storage_share_id` property and will be removed in version 4.0 of the AzureRM provider",
+			ConflictsWith: []string{"storage_share_id"},
+			RequiredWith:  []string{"storage_account_name"},
+			ValidateFunc:  validation.StringIsNotEmpty,
+		}
+	}
+
+	return resource
 }
 
 func resourceStorageShareDirectoryCreate(d *pluginsdk.ResourceData, meta interface{}) error {
+	storageClient := meta.(*clients.Client).Storage
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	ctx, cancel := timeouts.ForCreate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
-	storageClient := meta.(*clients.Client).Storage
 
 	directoryName := d.Get("name").(string)
 	metaDataRaw := d.Get("metadata").(map[string]interface{})
@@ -105,12 +114,12 @@ func resourceStorageShareDirectoryCreate(d *pluginsdk.ResourceData, meta interfa
 		if err != nil {
 			return err
 		}
-	} else {
+	} else if !features.FourPointOhBeta() {
 		// TODO: this is needed until `share_name` / `storage_account_name` are removed in favor of `storage_share_id` in v4.0
 		// we will retrieve the storage account twice but this will make it easier to refactor later
 		storageAccountName := d.Get("storage_account_name").(string)
 
-		account, err := storageClient.FindAccount(ctx, storageAccountName)
+		account, err := storageClient.FindAccount(ctx, subscriptionId, storageAccountName)
 		if err != nil {
 			return fmt.Errorf("retrieving Account %q: %v", storageAccountName, err)
 		}
@@ -137,7 +146,7 @@ func resourceStorageShareDirectoryCreate(d *pluginsdk.ResourceData, meta interfa
 		return fmt.Errorf("determining storage share ID")
 	}
 
-	account, err := storageClient.FindAccount(ctx, storageShareId.AccountId.AccountName)
+	account, err := storageClient.FindAccount(ctx, subscriptionId, storageShareId.AccountId.AccountName)
 	if err != nil {
 		return fmt.Errorf("retrieving Account %q for Directory %q (Share %q): %v", storageShareId.AccountId.AccountName, directoryName, storageShareId.ShareName, err)
 	}
@@ -196,9 +205,10 @@ func resourceStorageShareDirectoryCreate(d *pluginsdk.ResourceData, meta interfa
 }
 
 func resourceStorageShareDirectoryUpdate(d *pluginsdk.ResourceData, meta interface{}) error {
+	storageClient := meta.(*clients.Client).Storage
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	ctx, cancel := timeouts.ForUpdate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
-	storageClient := meta.(*clients.Client).Storage
 
 	id, err := directories.ParseDirectoryID(d.Id(), storageClient.StorageDomainSuffix)
 	if err != nil {
@@ -208,7 +218,7 @@ func resourceStorageShareDirectoryUpdate(d *pluginsdk.ResourceData, meta interfa
 	metaDataRaw := d.Get("metadata").(map[string]interface{})
 	metaData := ExpandMetaData(metaDataRaw)
 
-	account, err := storageClient.FindAccount(ctx, id.AccountId.AccountName)
+	account, err := storageClient.FindAccount(ctx, subscriptionId, id.AccountId.AccountName)
 	if err != nil {
 		return fmt.Errorf("retrieving Account %q for Directory %q (Share %q): %v", id.AccountId.AccountName, id.DirectoryPath, id.ShareName, err)
 	}
@@ -229,16 +239,17 @@ func resourceStorageShareDirectoryUpdate(d *pluginsdk.ResourceData, meta interfa
 }
 
 func resourceStorageShareDirectoryRead(d *pluginsdk.ResourceData, meta interface{}) error {
+	storageClient := meta.(*clients.Client).Storage
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
 	defer cancel()
-	storageClient := meta.(*clients.Client).Storage
 
 	id, err := directories.ParseDirectoryID(d.Id(), storageClient.StorageDomainSuffix)
 	if err != nil {
 		return err
 	}
 
-	account, err := storageClient.FindAccount(ctx, id.AccountId.AccountName)
+	account, err := storageClient.FindAccount(ctx, subscriptionId, id.AccountId.AccountName)
 	if err != nil {
 		return fmt.Errorf("retrieving Account %q for Directory %q (Share %q): %v", id.AccountId.AccountName, id.DirectoryPath, id.ShareName, err)
 	}
@@ -274,8 +285,11 @@ func resourceStorageShareDirectoryRead(d *pluginsdk.ResourceData, meta interface
 
 	d.Set("name", id.DirectoryPath)
 	d.Set("storage_share_id", storageShareId.ID())
-	d.Set("share_name", id.ShareName)
-	d.Set("storage_account_name", id.AccountId.AccountName)
+
+	if !features.FourPointOhBeta() {
+		d.Set("storage_account_name", id.AccountId.AccountName)
+		d.Set("share_name", id.ShareName)
+	}
 
 	if err = d.Set("metadata", FlattenMetaData(props.MetaData)); err != nil {
 		return fmt.Errorf("setting `metadata`: %v", err)
@@ -285,16 +299,17 @@ func resourceStorageShareDirectoryRead(d *pluginsdk.ResourceData, meta interface
 }
 
 func resourceStorageShareDirectoryDelete(d *pluginsdk.ResourceData, meta interface{}) error {
+	storageClient := meta.(*clients.Client).Storage
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
 	defer cancel()
-	storageClient := meta.(*clients.Client).Storage
 
 	id, err := directories.ParseDirectoryID(d.Id(), storageClient.StorageDomainSuffix)
 	if err != nil {
 		return err
 	}
 
-	account, err := storageClient.FindAccount(ctx, id.AccountId.AccountName)
+	account, err := storageClient.FindAccount(ctx, subscriptionId, id.AccountId.AccountName)
 	if err != nil {
 		return fmt.Errorf("retrieving Account %q for Directory %q (Share %q): %v", id.AccountId.AccountName, id.DirectoryPath, id.ShareName, err)
 	}
