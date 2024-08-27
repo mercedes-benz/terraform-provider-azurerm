@@ -136,7 +136,7 @@ The following arguments are supported:
 
 * `cdn_frontdoor_origin_ids` - (Optional) Front Door Origin resource IDs that this Front Door Route will link to.
 
-~> **NOTE:** In case you have origins assigned to your origin group it is required to set `cdn_frontdoor_origin_ids`.
+~> **NOTE:** In case you have `azurerm_cdn_frontdoor_origin`s assigned to your `azurerm_cdn_frontdoor_origin_group` it is required to set `cdn_frontdoor_origin_ids`.
 
 * `forwarding_protocol` - (Optional) The Protocol that will be use when forwarding traffic to backends. Possible values are `HttpOnly`, `HttpsOnly` or `MatchRequest`. Defaults to `MatchRequest`.
 
